@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Auburn ICE Hotspots</title>
+<meta name="description" content="Where ICE activity has been reported in and around Auburn, Washington, from community reports and news. Updated every hour.">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Auburn ICE Hotspots">
+<meta property="og:description" content="Where ICE activity has been reported in and around Auburn, Kent and Federal Way, Washington. Community reports and news, updated every hour.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+.hs { display: grid; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); max-width: 72rem; margin-inline: auto; }
+.hs-head { display: grid; gap: var(--cds-gap-sm); }
+.hs-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+.hs-take { margin: 0; font-size: var(--cds-font-size-body); max-width: 70ch; }
+.hs .hs-take b { font-weight: 600; }
+.hs-clock { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.hs-clock span { color: var(--color-fg); }
+.hs-caveat { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); max-width: 80ch; }
+.hs-caveat b { color: var(--color-warn); }
+.hs-controls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: center; }
+.hs-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+.hs-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); background: var(--color-bg); color: var(--color-fg); border: 0; cursor: pointer; }
+.hs-seg button + button { border-left: 1px solid var(--color-border-line); }
+.hs-seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+.hs-seg button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+.hs-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-md); }
+.hs-tile, .hs-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+.hs-tile { display: grid; gap: var(--cds-gap-xs); align-content: start; }
+.hs-tile .v { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; min-height: 1.3em; }
+.hs-tile .l { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+.hs-card { display: grid; gap: var(--cds-gap-sm); align-content: start; }
+.hs-card h2 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.hs-card .note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-wrap { overflow-x: auto; }
+.hs table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.hs th, .hs td { text-align: left; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+.hs th { color: var(--color-fg-muted); font-weight: var(--cds-font-weight-medium); white-space: nowrap; }
+.hs td.n, .hs th.n { text-align: right; }
+.hs-list td:first-child { white-space: nowrap; }
+.hs th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.hs-scorebar { display: flex; align-items: center; gap: var(--cds-gap-sm); min-width: 8rem; }
+.hs-scorebar span.b { display: block; height: 0.6rem; border-radius: 2px; }
+.hs-rank td:first-child { font-weight: 600; }
+.hs-bars { display: grid; gap: var(--cds-gap-sm); min-height: 6rem; }
+.hs-bar { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 2.5rem; gap: var(--cds-gap-sm); align-items: center; font-size: var(--cds-font-size-caption); }
+.hs-bar .track { height: 0.75rem; }
+.hs-bar .fill { height: 100%; border-radius: 2px; }
+.hs-bar .c { text-align: right; font-variant-numeric: tabular-nums; }
+.hs-chart { position: relative; min-height: 180px; }
+.hs-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 2; }
+.hs-tip .d { color: var(--cds-text-secondary); }
+.hs-list { max-height: 28rem; overflow: auto; }
+.hs-list th { position: sticky; top: 0; background: var(--color-panel); }
+.hs-search { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); width: min(100%, 18rem); }
+.hs-kind { display: inline-block; padding: 0 var(--cds-pad-xs); border-radius: 3px; border: 1px solid var(--color-border-line); white-space: nowrap; }
+.hs-kind.ev { color: var(--color-ok); }
+.hs a { color: inherit; text-underline-offset: 2px; }
+.hs details { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs details summary { cursor: pointer; color: var(--color-fg); }
+.hs dl { display: grid; gap: var(--cds-gap-xs); margin: var(--cds-gap-sm) 0 0; }
+.hs dt { color: var(--color-fg); font-weight: 600; }
+.hs dd { margin: 0 0 var(--cds-gap-xs); max-width: 80ch; }
+[data-dash-source-state=empty] { color: transparent; }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+@media (max-width: 560px) { .hs-hide-narrow { display: none; } .hs-bar { grid-template-columns: minmax(6rem, 8rem) minmax(0, 1fr) 2rem; } }
+
+:root {
+  --font-anthropic-sans: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-anthropic-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --color-bg: #f7f8fa; --color-panel: #ffffff; --color-fg: #18202c; --color-fg-muted: #586374;
+  --color-border-line: #dde2ea; --color-ok: #1f7a4d; --color-warn: #8a5a12; --color-bad: #b3261e;
+  --cds-chart-grid: #e8ecf1; --cds-chart-axis: #b9c1cc; --cds-chart-muted: #c3cad4;
+  --cds-surface-popover: #ffffff; --cds-border: #d3d9e2; --cds-text-secondary: #586374;
+  --cds-shadow-popover: 0 4px 16px rgba(20, 30, 50, .14);
+  --cds-font-size-caption: .85rem; --cds-font-size-body: 1rem; --cds-font-size-heading: 1.12rem; --cds-font-size-title: 2rem;
+  --cds-font-weight-medium: 600;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 16px; --cds-gap-lg: 24px; --cds-gap-xl: 32px;
+  --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 16px;
+  --cds-radius: 6px; --cds-dur-slow: .3s;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #11161d; --color-panel: #19202a; --color-fg: #e4e9f0; --color-fg-muted: #9aa6b6;
+    --color-border-line: #2b3441; --color-ok: #5fc08e; --color-warn: #e3b36a; --color-bad: #f08a80;
+    --cds-chart-grid: #232b36; --cds-chart-axis: #4a5565; --cds-chart-muted: #3d4756;
+    --cds-surface-popover: #1f2733; --cds-border: #364152; --cds-text-secondary: #9aa6b6;
+    --cds-shadow-popover: 0 4px 16px rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --color-bg: #11161d; --color-panel: #19202a; --color-fg: #e4e9f0; --color-fg-muted: #9aa6b6;
+  --color-border-line: #2b3441; --color-ok: #5fc08e; --color-warn: #e3b36a; --color-bad: #f08a80;
+  --cds-chart-grid: #232b36; --cds-chart-axis: #4a5565; --cds-chart-muted: #3d4756;
+  --cds-surface-popover: #1f2733; --cds-border: #364152; --cds-text-secondary: #9aa6b6;
+  --cds-shadow-popover: 0 4px 16px rgba(0, 0, 0, .5); color-scheme: dark;
+}
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); line-height: 1.5; }
+.site { padding-block: 32px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 16px; top: 8px; background: var(--color-panel); padding: 8px; z-index: 5; }
+.hs-help { display: grid; gap: var(--cds-gap-sm); }
+.hs-help ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; font-size: var(--cds-font-size-caption); }
+.hs-foot { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-lg); }
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+
+<a class="skip" href="#towns">Skip to the town ranking</a>
+<main class="site"><div class="hs">
+  <header class="hs-head" id="top">
+    <h1 class="hs-title">Auburn-area ICE hotspots</h1>
+    <p class="hs-take"><b data-draw="top1" data-source="breakdowns" data-field="key">—</b> has the most past ICE reports, weighted toward recent ones, followed by <b data-draw="top2" data-source="breakdowns" data-field="key">—</b> and <b data-draw="top3" data-source="breakdowns" data-field="key">—</b>. Data checked <b data-draw="asof" data-source="incidents" data-field="as_of">—</b>.</p>
+    <p class="hs-clock" id="clock">Now <span data-draw="clock">—</span> Pacific · Last checked <span data-draw="checked" data-source="incidents">—</span> · Next check <span data-draw="next">—</span></p>
+    <p class="hs-caveat"><b>Read with care.</b> This page counts community reports from The ICE List and news reports. Most are single alerts the site marks as not independently confirmed. Places with more past reports are where activity has been seen before. That is a rough guide to where it may happen again, not a prediction of any specific operation.</p>
+  </header>
+
+  <div class="hs-controls" id="filters">
+    <span class="hs-label">Area</span>
+    <div class="hs-seg" role="group" aria-label="Area">
+      <button type="button" class="hs-area" data-v="core" aria-pressed="true">Auburn and nearby towns</button>
+      <button type="button" class="hs-area" data-v="wide" aria-pressed="false">Add Tacoma, Renton, Burien and others</button>
+    </div>
+    <span class="hs-label">Reports</span>
+    <div class="hs-seg" role="group" aria-label="Reports">
+      <button type="button" class="hs-ev" data-v="all" aria-pressed="true">All reports</button>
+      <button type="button" class="hs-ev" data-v="evidence" aria-pressed="false">Only with evidence</button>
+    </div>
+  </div>
+
+  <section class="hs-tiles" id="totals">
+    <div class="hs-tile"><span class="v" data-draw="t-n" data-source="breakdowns" data-field="n">—</span><span class="l">Reports, all time</span></div>
+    <div class="hs-tile"><span class="v" data-draw="t-recent" data-source="breakdowns" data-field="recent">—</span><span class="l">Reports in the last 90 days</span></div>
+    <div class="hs-tile"><span class="v" data-draw="t-towns" data-source="breakdowns" data-field="towns">—</span><span class="l">Towns with at least one report</span></div>
+    <div class="hs-tile"><span class="v" data-draw="t-last" data-source="breakdowns" data-field="last">—</span><span class="l">Most recent report, <span data-draw="t-ago">—</span></span></div>
+  </section>
+
+  <section class="hs-card" id="towns">
+    <h2>Where activity has been reported most</h2>
+    <p class="note">Ranked by a score that counts every report and gives recent ones more weight. A report loses half its weight every 90 days.</p>
+    <div class="hs-wrap">
+      <table class="hs-rank" data-source="breakdowns" data-row-key="k">
+        <thead><tr><th data-field="key">Town</th><th data-field="score">Score</th><th class="n" data-field="n">Reports</th><th class="n" data-field="recent">Last 90 days</th><th data-field="last">Most recent</th></tr></thead>
+        <tbody data-draw="towns"></tbody>
+      </table>
+    </div>
+    <p class="note">Watched towns with no reports on The ICE List: <span data-draw="zero" data-source="breakdowns">—</span>.</p>
+  </section>
+
+  <div class="hs-grid">
+    <section class="hs-card" id="places">
+      <h2>Types of places</h2>
+      <p class="note">Where the report says it happened. Most community alerts give no place.</p>
+      <div class="hs-bars" data-draw="places" data-source="breakdowns"></div>
+    </section>
+    <section class="hs-card" id="kinds">
+      <h2>How each report is backed</h2>
+      <p class="note">Community alerts and index listings are unconfirmed. The others have video, a court record, eyewitness detail or a news report.</p>
+      <div class="hs-bars" data-draw="kinds" data-source="breakdowns"></div>
+    </section>
+  </div>
+
+  <div class="hs-grid">
+    <section class="hs-card" id="weekdays">
+      <h2>Day of the week</h2>
+      <p class="note">Many community alerts are dated by the day they were filed, so these days are approximate.</p>
+      <div class="hs-chart" data-draw="weekday" data-source="breakdowns"></div>
+    </section>
+    <section class="hs-card" id="hours">
+      <h2>Time of day</h2>
+      <p class="note">Only reports that give a time are shown. Each dot is one report.</p>
+      <div class="hs-chart" data-draw="hours" data-source="incidents"></div>
+    </section>
+  </div>
+
+  <section class="hs-card" id="months">
+    <h2>Reports by month</h2>
+    <p class="note">More reports in recent months raise a town's score.</p>
+    <div class="hs-chart" data-draw="months" data-source="breakdowns"></div>
+  </section>
+
+  <section class="hs-card" id="list">
+    <h2>Every report</h2>
+    <input class="hs-search" id="hs-search" type="search" placeholder="Search town, place or type" aria-label="Search reports">
+    <div class="hs-wrap hs-list">
+      <table data-source="incidents" data-row-key="id">
+        <thead><tr>
+          <th data-field="date"><button type="button" class="hs-sort" data-k="date">Date</button></th>
+          <th data-field="town"><button type="button" class="hs-sort" data-k="town">Town</button></th>
+          <th data-field="title">What was reported</th>
+          <th data-field="place" class="hs-hide-narrow">Place</th>
+          <th data-field="place_type" class="hs-hide-narrow"><button type="button" class="hs-sort" data-k="place_type">Place type</button></th>
+          <th data-field="time" class="hs-hide-narrow">Time</th>
+          <th data-field="source_kind"><button type="button" class="hs-sort" data-k="source_kind">Backed by</button></th>
+        </tr></thead>
+        <tbody data-draw="list"></tbody>
+      </table>
+    </div>
+  </section>
+
+
+  <section class="hs-card hs-help" id="help">
+    <h2>If you or someone you know needs help</h2>
+    <ul>
+      <li><a href="https://locator.ice.gov/" target="_blank" rel="noopener">ICE Online Detainee Locator</a>: find out whether a person is held and where.</li>
+      <li><a href="https://www.immigrationadvocates.org/nonprofit/legaldirectory/" target="_blank" rel="noopener">National Immigration Legal Services Directory</a>: free or low-cost legal help by location.</li>
+      <li><a href="https://www.wehaverights.us/" target="_blank" rel="noopener">We Have Rights</a>: know-your-rights videos and guides in several languages.</li>
+      <li><a href="https://www.nilc.org/resources/know-your-rights-card/" target="_blank" rel="noopener">NILC know-your-rights card</a>: a printable card.</li>
+    </ul>
+  </section>
+
+  <details id="notes">
+    <summary>How this page works and what it leaves out</summary>
+    <dl>
+      <dt>Source</dt>
+      <dd>The ICE List (theicelist.org) incident pages for Washington, searched town by town, plus news reports found by web search. The ICE List gathers StopICE community alerts, eyewitness reports, court records and news. Legal-help links are on iceinmyarea.org/resources.</dd>
+      <dt>Score</dt>
+      <dd>Each report counts 1 on the day it happened and half that 90 days later, a quarter after 180 days, and so on. A town's score is the sum. It favors places with repeated and recent reports.</dd>
+      <dt>Only with evidence</dt>
+      <dd>Keeps reports backed by video, a court record, eyewitness detail matched to ICE's FOIA arrest log, or a news report. Drops unconfirmed community alerts and index listings.</dd>
+      <dt>Wider area</dt>
+      <dd>Tacoma, Burien, Renton, Puyallup, Fife and Tukwila entries come from the site's index. Their pages were not opened, so they have no place or time. One undated Tacoma alert is left out.</dd>
+      <dt>Left out</dt>
+      <dd>Reports that never reached The ICE List. Arrest totals in ICE's own data, which count people rather than places. Anything about future operations, which no public source here describes.</dd>
+      <dt>Updates</dt>
+      <dd>The ICE List is checked every hour, day and night, along with a news search, and new reports are added. The clock and "days ago" figures use the current time. Scores and the 90-day window count back from the most recent check.</dd>
+    </dl>
+  </details>
+</div>
+</main>
+<footer class="site hs-foot" style="padding-block:0 32px"><div class="hs" style="gap:4px">Built from community reports on The ICE List and Washington news. Most reports are unconfirmed. This site does not predict ICE operations. Updated every hour.</div></footer>
+<script>
+window.dash = (() => {
+  const st = { data: {}, params: { area: 'core', evidence: 'all' }, draws: new Map(), calcs: new Map(), listeners: [] };
+  const colors = ['#2f6fb0', '#c0612f', '#2f8a5a', '#8a56b5', '#b0882f', '#2f9aa0', '#b04f7a', '#6b7a2f'];
+  const data = (id) => {
+    const c = st.calcs.get(id);
+    if (c) {
+      const ins = c.inputs.map(data);
+      if (ins.some((x) => x.status !== 'ok')) return { status: 'loading', data: [] };
+      if (!c.cache) c.cache = c.fn(...ins.map((x) => x.data));
+      return { status: 'ok', data: c.cache };
+    }
+    return st.data[id] || { status: 'loading', data: [] };
+  };
+  const runOne = (el, spec) => {
+    try {
+      if (typeof spec === 'function') spec(el);
+      else { if (!el.__dashMade) el.__dashMade = { v: spec.mount(el) }; spec.update(el, el.__dashMade.v); }
+    } catch (e) { console.error(e); }
+  };
+  const runName = (name) => { const spec = st.draws.get(name); if (spec) document.querySelectorAll('[data-draw="' + name + '"]').forEach((el) => runOne(el, spec)); };
+  const runAll = () => { st.listeners.forEach((f) => { try { f(); } catch (e) { console.error(e); } }); st.draws.forEach((_, n) => runName(n)); };
+  let t; const later = () => { clearTimeout(t); t = setTimeout(runAll, 120); };
+  window.addEventListener('resize', later);
+  const load = () => fetch('data.json', { cache: 'no-store' }).then((r) => r.json()).then((rows) => {
+    st.data.incidents = { status: 'ok', data: rows };
+    st.calcs.forEach((c) => { c.cache = null; });
+    runAll();
+  }).catch(() => { st.data.incidents = { status: 'error', data: [] }; runAll(); });
+  document.addEventListener('DOMContentLoaded', () => { runAll(); load(); setInterval(load, 10 * 60 * 1000); });
+  return {
+    colors,
+    data,
+    calc: (id, spec) => { st.calcs.set(id, { inputs: spec.inputs, fn: spec.fn, cache: null }); },
+    loader: () => {},
+    onData: (fn) => { st.listeners.push(fn); },
+    draw: (name, spec) => { if (spec === undefined) runName(name); else st.draws.set(name, spec); },
+    params: () => Object.assign({}, st.params),
+    setParams: (o) => { Object.assign(st.params, o); runAll(); },
+    resetParams: () => { st.params = { area: 'core', evidence: 'all' }; runAll(); },
+    setLink: () => {},
+    refresh: load,
+  };
+})();
+</script>
+<script>
+dash.calc('breakdowns', {
+  inputs: ['incidents'],
+  title: 'Hotspot counts and scores',
+  description: 'Reports by town, place type, backing, weekday, hour and month for each area and evidence filter, with a score where a report loses half its weight every 90 days.',
+  fn: (incidents) => {
+    const DAY = 864e5, HALF = 90, WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const asOf = incidents.reduce((m, r) => (r.as_of > m ? r.as_of : m), '');
+    const ref = Date.parse(asOf + 'T00:00:00Z');
+    const dated = incidents.filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.date || ''));
+    const firstMonth = dated.reduce((m, r) => (r.date.slice(0, 7) < m ? r.date.slice(0, 7) : m), asOf.slice(0, 7));
+    const out = [];
+    for (const area of ['core', 'wide']) for (const ev of ['all', 'evidence']) {
+      const scope = area + '-' + ev;
+      const g = new Map();
+      const get = (dim, key) => {
+        const k = scope + '|' + dim + '|' + key;
+        if (!g.has(k)) g.set(k, { k, scope, dim, key, n: 0, recent: 0, score: 0, last: '', towns: null });
+        return g.get(k);
+      };
+      WD.forEach((d) => get('weekday', d));
+      for (let m = firstMonth; m <= asOf.slice(0, 7);) {
+        get('month', m);
+        const [y, mo] = m.split('-').map(Number);
+        m = mo === 12 ? (y + 1) + '-01' : y + '-' + String(mo + 1).padStart(2, '0');
+      }
+      const total = get('total', 'all');
+      const rows = dated.filter((r) => (area === 'wide' || r.area === 'core') && (ev === 'all' || r.evidence));
+      for (const r of rows) {
+        const age = (ref - Date.parse(r.date + 'T00:00:00Z')) / DAY;
+        const add = (x) => { x.n++; if (age <= 90) x.recent++; x.score += Math.pow(0.5, age / HALF); if (r.date > x.last) x.last = r.date; };
+        add(total);
+        add(get('town', r.town));
+        add(get('place', r.place_type || 'Not given'));
+        add(get('kind', r.source_kind));
+        add(get('weekday', WD[new Date(r.date + 'T00:00:00Z').getUTCDay()]));
+        add(get('month', r.date.slice(0, 7)));
+        if (/^\d{2}:\d{2}$/.test(r.time || '')) add(get('hour', r.time.slice(0, 2)));
+      }
+      total.towns = [...g.values()].filter((x) => x.dim === 'town').length;
+      for (const x of g.values()) { x.score = Math.round(x.score * 100) / 100; out.push(x); }
+    }
+    return out;
+  },
+});
+
+window.hsWatch = ['Auburn', 'Kent', 'Federal Way', 'Algona', 'Pacific', 'Milton', 'Edgewood', 'Sumner', 'Bonney Lake', 'Covington', 'Maple Valley', 'Black Diamond', 'Enumclaw'];
+window.hsScope = () => { const p = dash.params(); return (p.area || 'core') + '-' + (p.evidence || 'all'); };
+window.hsRows = (dim) => { const b = dash.data('breakdowns'); return b.status === 'ok' ? b.data.filter((x) => x.scope === hsScope() && x.dim === dim) : null; };
+window.hsTowns = () => { const t = hsRows('town'); return t ? t.slice().sort((a, b) => b.score - a.score || b.n - a.n || a.key.localeCompare(b.key)) : null; };
+window.hsDate = (s) => (s ? d3.utcFormat('%b %-d, %Y')(new Date(s + 'T00:00:00Z')) : '—');
+window.hsTip = (el) => { let t = el.querySelector('.hs-tip'); if (!t) { t = document.createElement('div'); t.className = 'hs-tip'; t.hidden = true; el.appendChild(t); } return t; };
+window.hsShowTip = (el, tip, event, head, line) => {
+  tip.replaceChildren();
+  const a = document.createElement('div'); a.className = 'd'; a.textContent = head; tip.appendChild(a);
+  const b = document.createElement('div'); b.textContent = line; tip.appendChild(b);
+  tip.hidden = false;
+  const box = el.getBoundingClientRect();
+  const x = event.clientX - box.left, y = event.clientY - box.top;
+  const w = tip.offsetWidth;
+  tip.style.left = Math.max(0, Math.min(box.width - w, x - w / 2)) + 'px';
+  tip.style.top = Math.max(0, y - tip.offsetHeight - 12) + 'px';
+};
+
+// Filter buttons
+document.querySelectorAll('.hs-area').forEach((b) => b.addEventListener('click', () => dash.setParams({ area: b.dataset.v })));
+document.querySelectorAll('.hs-ev').forEach((b) => b.addEventListener('click', () => dash.setParams({ evidence: b.dataset.v })));
+dash.onData(() => {
+  const p = dash.params();
+  document.querySelectorAll('.hs-area').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === (p.area || 'core'))));
+  document.querySelectorAll('.hs-ev').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === (p.evidence || 'all'))));
+});
+
+// Takeaway
+['top1', 'top2', 'top3'].forEach((name, i) => dash.draw(name, (el) => {
+  const t = hsTowns();
+  const row = t && t[i];
+  el.textContent = row ? row.key : '—';
+  if (row) el.setAttribute('data-where', 'k=' + encodeURIComponent(row.k)); else el.removeAttribute('data-where');
+}));
+dash.draw('asof', (el) => {
+  const d = dash.data('incidents');
+  const v = d.status === 'ok' ? d.data.reduce((m, r) => (r.as_of > m ? r.as_of : m), '') : '';
+  el.textContent = v ? hsDate(v) : '—';
+  if (v) el.setAttribute('data-where', 'as_of=' + v); else el.removeAttribute('data-where');
+});
+
+// Live time
+window.hsPT = (d, opts) => new Intl.DateTimeFormat('en-US', Object.assign({ timeZone: 'America/Los_Angeles' }, opts)).format(d);
+window.hsAgo = (ms) => { const m = Math.max(0, Math.round(ms / 6e4)); if (m < 1) return 'just now'; if (m < 60) return m + (m === 1 ? ' minute ago' : ' minutes ago'); const h = Math.round(m / 60); if (h < 48) return h + (h === 1 ? ' hour ago' : ' hours ago'); const d = Math.round(h / 24); return d + ' days ago'; };
+window.hsNextCheck = (now) => {
+  const SLOTS = Array.from({ length: 24 }, (_, i) => i);
+  for (let i = 0; i < 48 * 4; i++) {
+    const t = new Date(Math.ceil(now.getTime() / 9e5) * 9e5 + i * 9e5);
+    const hh = +hsPT(t, { hour: '2-digit', hourCycle: 'h23' }), mm = +hsPT(t, { minute: '2-digit' });
+    if (SLOTS.includes(hh) && mm === 15 && t.getTime() - 12e4 > now.getTime()) return new Date(t.getTime() - 2 * 6e4);
+  }
+  return null;
+};
+const ticking = (name, render) => dash.draw(name, {
+  mount: (el) => { const id = setInterval(() => render(el), 30000); return id; },
+  update: (el) => render(el),
+  unmount: (el, id) => clearInterval(id),
+});
+ticking('clock', (el) => { el.textContent = hsPT(new Date(), { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); });
+ticking('next', (el) => { const n = hsNextCheck(new Date()); el.textContent = n ? hsPT(n, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '—'; });
+ticking('checked', (el) => {
+  const d = dash.data('incidents');
+  const v = d.status === 'ok' ? d.data.reduce((m, r) => ((r.checked_at || '') > m ? r.checked_at : m), '') : '';
+  el.textContent = v ? hsAgo(Date.now() - Date.parse(v)) : '—';
+});
+ticking('t-ago', (el) => {
+  const t = hsRows('total');
+  const last = t && t[0] && t[0].last;
+  const today = hsPT(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+  const days = last ? Math.round((Date.parse(today + 'T00:00:00Z') - Date.parse(last + 'T00:00:00Z')) / 864e5) : null;
+  el.textContent = days === null ? '—' : days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
+});
+
+// Tiles
+const tile = (name, field, fmt) => dash.draw(name, (el) => {
+  const t = hsRows('total');
+  const row = t && t[0];
+  el.textContent = row ? fmt(row[field]) : '—';
+  if (row) el.setAttribute('data-where', 'k=' + encodeURIComponent(row.k)); else el.removeAttribute('data-where');
+});
+tile('t-n', 'n', d3.format(','));
+tile('t-recent', 'recent', d3.format(','));
+tile('t-towns', 'towns', d3.format(','));
+tile('t-last', 'last', hsDate);
+
+// Town ranking
+dash.draw('towns', (tbody) => {
+  const t = hsTowns();
+  tbody.replaceChildren();
+  if (!t) return;
+  const max = d3.max(t, (x) => x.score) || 1;
+  for (const r of t) {
+    const tr = document.createElement('tr');
+    tr.dataset.key = r.k;
+    const c1 = document.createElement('td'); c1.textContent = r.key;
+    const c2 = document.createElement('td');
+    const sb = document.createElement('div'); sb.className = 'hs-scorebar';
+    const bar = document.createElement('span'); bar.className = 'b';
+    bar.style.width = Math.max(2, (r.score / max) * 100) + 'px';
+    bar.style.background = dash.colors[0];
+    const num = document.createElement('span'); num.textContent = d3.format('.2f')(r.score);
+    sb.append(bar, num); c2.appendChild(sb);
+    const c3 = document.createElement('td'); c3.className = 'n'; c3.textContent = d3.format(',')(r.n);
+    const c4 = document.createElement('td'); c4.className = 'n'; c4.textContent = d3.format(',')(r.recent);
+    const c5 = document.createElement('td'); c5.textContent = r.last;
+    tr.append(c1, c2, c3, c4, c5);
+    tbody.appendChild(tr);
+  }
+});
+dash.draw('zero', (el) => {
+  const t = hsRows('town');
+  if (!t) { el.textContent = '—'; return; }
+  const seen = new Set(t.map((x) => x.key));
+  const z = hsWatch.filter((w) => !seen.has(w));
+  el.textContent = z.length ? z.join(', ') : 'none';
+});
+
+// Bar lists
+const bars = (name, dim, colorIndex) => dash.draw(name, (el) => {
+  const rows = hsRows(dim);
+  el.replaceChildren();
+  if (!rows) return;
+  const s = rows.slice().sort((a, b) => b.n - a.n || a.key.localeCompare(b.key));
+  const max = d3.max(s, (x) => x.n) || 1;
+  for (const r of s) {
+    const line = document.createElement('div'); line.className = 'hs-bar';
+    const l = document.createElement('span'); l.textContent = r.key;
+    const tr = document.createElement('div'); tr.className = 'track';
+    const f = document.createElement('div'); f.className = 'fill';
+    f.style.width = (r.n / max) * 100 + '%';
+    f.style.background = r.key === 'Not given' ? 'var(--cds-chart-muted)' : dash.colors[colorIndex];
+    tr.appendChild(f);
+    const c = document.createElement('span'); c.className = 'c'; c.textContent = d3.format(',')(r.n);
+    line.append(l, tr, c);
+    el.appendChild(line);
+  }
+});
+bars('places', 'place', 1);
+bars('kinds', 'kind', 2);
+
+// Column chart helper
+const columns = (name, dim, labelFmt, headFmt, tickEvery) => dash.draw(name, (el) => {
+  const rows = hsRows(dim);
+  el.querySelectorAll('svg').forEach((s) => s.remove());
+  const tip = hsTip(el); tip.hidden = true;
+  if (!rows) return;
+  const data = dim === 'month' ? rows.slice().sort((a, b) => a.key.localeCompare(b.key)) : rows;
+  const W = el.clientWidth || 320, H = 180, m = { t: 8, r: 4, b: 24, l: 28 };
+  const x = d3.scaleBand(data.map((d) => d.key), [m.l, W - m.r]).padding(0.2);
+  const ymax = Math.max(1, d3.max(data, (d) => d.n));
+  const y = d3.scaleLinear([0, ymax], [H - m.b, m.t]).nice();
+  const svg = d3.select(el).insert('svg', ':first-child').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img');
+  const ticks = y.ticks(Math.min(4, ymax)).filter(Number.isInteger);
+  svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', (d) => y(d)).attr('y2', (d) => y(d)).attr('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').selectAll('text').data(ticks).join('text').attr('x', m.l - 6).attr('y', (d) => y(d)).attr('dy', '0.32em').attr('text-anchor', 'end').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text(d3.format(','));
+  svg.append('g').selectAll('rect').data(data).join('rect')
+    .attr('x', (d) => x(d.key) + Math.max(0, (x.bandwidth() - 32) / 2)).attr('width', Math.min(32, x.bandwidth()))
+    .attr('y', (d) => y(d.n)).attr('height', (d) => y(0) - y(d.n)).attr('rx', 2).attr('fill', dash.colors[0])
+    .on('pointermove', (event, d) => hsShowTip(el, tip, event, headFmt(d.key), d3.format(',')(d.n) + (d.n === 1 ? ' report' : ' reports')))
+    .on('pointerleave', () => { tip.hidden = true; });
+  const every = tickEvery(W, data.length);
+  svg.append('g').selectAll('text').data(data.filter((d, i) => i % every === 0)).join('text')
+    .attr('x', (d) => x(d.key) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle')
+    .attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text((d) => labelFmt(d.key));
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', 'var(--cds-chart-axis)');
+});
+const monthLabel = (k) => d3.utcFormat('%b %y')(new Date(k + '-01T00:00:00Z'));
+columns('weekday', 'weekday', (k) => k, (k) => k, () => 1);
+columns('months', 'month', monthLabel, (k) => d3.utcFormat('%B %Y')(new Date(k + '-01T00:00:00Z')), (W, n) => Math.max(1, Math.ceil(n / Math.max(2, Math.floor(W / 56)))));
+
+// Time-of-day dot strip
+dash.draw('hours', (el) => {
+  const d = dash.data('incidents');
+  el.querySelectorAll('svg, p.hs-none').forEach((s) => s.remove());
+  const tip = hsTip(el); tip.hidden = true;
+  if (d.status !== 'ok') return;
+  const p = dash.params();
+  const rows = d.data.filter((r) => /^\d{2}:\d{2}$/.test(r.time || '') && ((p.area || 'core') === 'wide' || r.area === 'core') && ((p.evidence || 'all') === 'all' || r.evidence));
+  const toH = (t) => +t.slice(0, 2) + +t.slice(3, 5) / 60;
+  const W = el.clientWidth || 320, H = 120, m = { l: 28, r: 28 };
+  const x = d3.scaleLinear([6, 20], [m.l, W - m.r]);
+  const svg = d3.select(el).insert('svg', ':first-child').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img');
+  svg.append('rect').attr('x', x(9)).attr('width', x(15) - x(9)).attr('y', 14).attr('height', 62).attr('fill', 'var(--cds-chart-grid)').attr('opacity', 0.6);
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', 76).attr('y2', 76).attr('stroke', 'var(--cds-chart-axis)');
+  const ticks = [6, 9, 12, 15, 18];
+  svg.append('g').selectAll('text').data(ticks).join('text').attr('x', (h) => x(h)).attr('y', 96).attr('text-anchor', 'middle').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text((h) => (h === 12 ? 'noon' : (h % 12) + (h < 12 ? ' a.m.' : ' p.m.')));
+  const sorted = rows.slice().sort((a, b) => toH(a.time) - toH(b.time));
+  const stack = [];
+  const pos = sorted.map((r) => { const cx = x(toH(r.time)); let lvl = 0; while (stack.some((s) => s.lvl === lvl && Math.abs(s.cx - cx) < 14)) lvl++; stack.push({ cx, lvl }); return { r, cx, cy: 64 - lvl * 14 }; });
+  svg.append('g').selectAll('circle').data(pos).join('circle').attr('cx', (q) => q.cx).attr('cy', (q) => q.cy).attr('r', 6).attr('fill', dash.colors[3] || dash.colors[0])
+    .on('pointermove', (event, q) => hsShowTip(el, tip, event, q.r.town + ', ' + hsDate(q.r.date), q.r.time + ' · ' + (q.r.place || q.r.place_type)))
+    .on('pointerleave', () => { tip.hidden = true; });
+  svg.append('text').attr('x', x(12)).attr('y', 114).attr('text-anchor', 'middle').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)')
+    .text(rows.length ? d3.format(',')(rows.length) + ' timed reports · shaded band is 9 a.m. to 3 p.m.' : 'No timed reports in this view');
+});
+
+// Incident list
+window.hsSort = { k: 'date', dir: -1 };
+document.querySelectorAll('.hs-sort').forEach((b) => b.addEventListener('click', () => {
+  hsSort.dir = hsSort.k === b.dataset.k ? -hsSort.dir : (b.dataset.k === 'date' ? -1 : 1);
+  hsSort.k = b.dataset.k;
+  document.querySelectorAll('.hs-sort').forEach((o) => o.closest('th').setAttribute('aria-sort', o === b ? (hsSort.dir > 0 ? 'ascending' : 'descending') : 'none'));
+  dash.draw('list');
+}));
+document.querySelectorAll('.hs-search').forEach((s) => s.addEventListener('input', () => dash.draw('list')));
+dash.draw('list', (tbody) => {
+  const d = dash.data('incidents');
+  tbody.replaceChildren();
+  if (d.status !== 'ok') return;
+  const p = dash.params();
+  const q = ((document.querySelector('.hs-search') || {}).value || '').trim().toLowerCase();
+  const rows = d.data
+    .filter((r) => ((p.area || 'core') === 'wide' || r.area === 'core') && ((p.evidence || 'all') === 'all' || r.evidence))
+    .filter((r) => !q || [r.town, r.title, r.place_type, r.place, r.source_kind].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => hsSort.dir * String(a[hsSort.k] || '').localeCompare(String(b[hsSort.k] || '')) || b.date.localeCompare(a.date));
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const td = (text, cls) => { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = text; tr.appendChild(c); return c; };
+    tr.dataset.key = r.id;
+    td(r.date);
+    td(r.town);
+    const t = td('');
+    if (/^https:\/\/[^\s"'<>]+$/.test(r.url || '')) { const a = document.createElement('a'); a.href = r.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = r.title; t.appendChild(a); } else t.textContent = r.title;
+    td(r.place || '', 'hs-hide-narrow');
+    td(r.place_type, 'hs-hide-narrow');
+    td(r.time || '', 'hs-hide-narrow');
+    const k = td('');
+    const chip = document.createElement('span'); chip.className = 'hs-kind' + (r.evidence ? ' ev' : ''); chip.textContent = r.source_kind; k.appendChild(chip);
+    tbody.appendChild(tr);
+  }
+});
+</script>
+
+</body>
+</html>
