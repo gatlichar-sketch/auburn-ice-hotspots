@@ -127,6 +127,11 @@ body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-fami
 .hs-cam figcaption b { color: var(--color-fg); font-weight: 600; }
 .hs-camtabs { flex-wrap: wrap; }
 .hs-data ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; font-size: var(--cds-font-size-caption); max-width: 80ch; }
+.hs-active { border: 2px solid var(--color-bad); border-radius: var(--cds-radius); background: var(--color-panel); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); }
+.hs-active[hidden] { display: none; }
+.hs-active h2 { margin: 0; font-size: var(--cds-font-size-heading); color: var(--color-bad); }
+.hs-active ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
+.hs-active .hs-cams { grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr)); gap: var(--cds-gap-sm); }
 .hs-warn { margin: 0; font-size: var(--cds-font-size-caption); border-left: 3px solid var(--color-warn); padding-left: var(--cds-pad-sm); max-width: 80ch; }
 .hs-status { margin: 0; font-size: var(--cds-font-size-caption); min-height: 1.4em; }
 .hs-status.ok { color: var(--color-ok); } .hs-status.bad { color: var(--color-bad); }
@@ -195,6 +200,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     <p class="hs-clock" id="clock">Now <span data-draw="clock">—</span> Pacific · Last checked <span data-draw="checked" data-source="incidents">—</span> · Next check <span data-draw="next">—</span></p>
     <p class="hs-caveat"><b>Read with care.</b> This page counts community reports from The ICE List and news reports. Most are single alerts the site marks as not independently confirmed. Places with more past reports are where activity has been seen before. That is a rough guide to where it may happen again, not a prediction of any specific operation.</p>
   </header>
+
+  <section class="hs-active" id="active" hidden aria-live="polite">
+    <h2>Active sighting</h2>
+    <ul id="hs-active-list"></ul>
+    <p class="note" id="hs-active-cam-note"></p>
+    <div class="hs-cams" id="hs-active-cams"></div>
+    <p class="note">Road cameras show traffic only and cannot confirm ICE activity. They are here so you can see conditions near the reported area. <a href="#cameras">More cameras</a></p>
+  </section>
 
   <div class="hs-controls" id="filters">
     <span class="hs-label">Area</span>
@@ -392,7 +405,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
       <dt>Wider area</dt>
       <dd>Tacoma, Burien, Renton, Puyallup, Fife and Tukwila entries come from the site's index. Their pages were not opened, so they have no place or time. One undated Tacoma alert is left out.</dd>
       <dt>Road cameras</dt>
-      <dd>Live images come straight from WSDOT's public camera feed (images.wsdot.wa.gov). This site does not save them. Cameras sometimes go offline for maintenance.</dd>
+      <dd>Live images come straight from WSDOT's public camera feed (images.wsdot.wa.gov). This site does not save them. Cameras sometimes go offline for maintenance. When a report dated today or yesterday is added, an Active sighting box appears at the top with the nearest cameras. Nothing on this site scans the camera images for ICE; a sighting only appears from a report.</dd>
       <dt>Left out</dt>
       <dd>Reports that never reached The ICE List. Arrest totals in ICE's own data, which count people rather than places. Anything about future operations, which no public source here describes.</dd>
       <dt>Updates</dt>
@@ -1388,6 +1401,7 @@ window.HS_FORM_ENDPOINT = 'https://formspree.io/f/maeoqrdp';
   const when = document.getElementById('hs-cams-time');
   if (!box) return;
   let area = 'Auburn';
+  window.hsCams = { CAMS, B, pick: (v) => { const b = document.querySelector('.hs-camtab[data-v="' + v + '"]'); if (b) b.click(); } };
   const fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' });
   function draw() {
     const t = Date.now();
@@ -1409,6 +1423,55 @@ window.HS_FORM_ENDPOINT = 'https://formspree.io/f/maeoqrdp';
   }));
   draw();
   setInterval(() => { if (!document.hidden) draw(); }, 120000);
+})();
+</script>
+<script>
+(() => {
+  const GROUP = {
+    'Auburn': 'Auburn', 'Algona': 'Auburn', 'Pacific': 'Auburn', 'Sumner': 'Auburn', 'Bonney Lake': 'Auburn', 'Enumclaw': 'Auburn', 'Black Diamond': 'Auburn',
+    'Kent': 'Kent', 'Renton': 'Kent', 'Tukwila': 'Kent', 'Burien': 'Kent', 'SeaTac': 'Kent', 'Covington': 'Kent', 'Maple Valley': 'Kent',
+    'Federal Way': 'Federal Way', 'Des Moines': 'Federal Way', 'Milton': 'Federal Way', 'Edgewood': 'Federal Way',
+    'Tacoma': 'Tacoma', 'Fife': 'Tacoma', 'Puyallup': 'Tacoma'
+  };
+  const ACTIVE_DAYS = 2;
+  const box = document.getElementById('active');
+  if (!box) return;
+  const list = document.getElementById('hs-active-list');
+  const cams = document.getElementById('hs-active-cams');
+  const camNote = document.getElementById('hs-active-cam-note');
+  const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+  const daysAgo = (d) => Math.round((Date.parse(today()) - Date.parse(d)) / 86400000);
+  const nice = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  function render(rows) {
+    const act = rows.filter((r) => r.date && daysAgo(r.date) >= 0 && daysAgo(r.date) < ACTIVE_DAYS)
+      .sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || '')));
+    if (!act.length || !window.hsCams) { box.hidden = true; return; }
+    list.replaceChildren(...act.slice(0, 4).map((r) => {
+      const li = document.createElement('li');
+      const when = daysAgo(r.date) === 0 ? 'today' : 'yesterday';
+      li.textContent = r.title + ' in ' + r.town + ', ' + when + ' (' + nice(r.date) + (r.time ? ', ' + r.time : '') + ')' + (r.place ? ' at ' + r.place : '') + '. ' + r.source_kind + '.';
+      return li;
+    }));
+    const groups = [...new Set(act.map((r) => GROUP[r.town]).filter(Boolean))].slice(0, 2);
+    const t = Date.now();
+    cams.replaceChildren(...groups.flatMap((g) => window.hsCams.CAMS[g].slice(0, groups.length > 1 ? 3 : 4).map(([name, path]) => {
+      const f = document.createElement('figure'); f.className = 'hs-cam';
+      const a = document.createElement('a'); a.href = 'https://wsdot.wa.gov/travel/real-time/cameras'; a.target = '_blank'; a.rel = 'noopener';
+      const img = document.createElement('img'); img.loading = 'lazy'; img.alt = 'WSDOT traffic camera: ' + name; img.src = window.hsCams.B + path + '?t=' + t;
+      img.onerror = () => { f.remove(); };
+      a.append(img);
+      const c = document.createElement('figcaption'); c.textContent = name;
+      f.append(a, c); return f;
+    })));
+    camNote.textContent = groups.length ? 'Nearest WSDOT road cameras, refreshed ' + new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' }).format(t) + ' Pacific:' : '';
+    if (groups[0]) window.hsCams.pick(groups[0]);
+    box.hidden = false;
+  }
+  let rows = [];
+  const load = () => fetch('data.json', { cache: 'no-store' }).then((r) => r.json()).then((d) => { rows = d; render(rows); }).catch(() => {});
+  load();
+  setInterval(load, 10 * 60 * 1000);
+  setInterval(() => { if (!document.hidden && rows.length) render(rows); }, 120000);
 })();
 </script>
 </body>
