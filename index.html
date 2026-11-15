@@ -148,6 +148,24 @@ body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-fami
 .hs-heat td.c.z { color: var(--color-fg-muted); cursor: default; }
 .hs-heat th[scope="row"] { white-space: nowrap; color: var(--color-fg); }
 .hs-heat td.n { text-align: right; font-weight: 600; }
+.hs-pats { list-style: none; margin: 0; padding: 0; display: grid; }
+.hs-pats > li.note { padding: var(--cds-pad-sm) 0; }
+.hs-pat { width: 100%; display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: var(--cds-gap-xs) var(--cds-gap-md); align-items: start; text-align: left; font: inherit; color: inherit; background: none; border: 0; border-top: 1px solid var(--color-border-line); padding: var(--cds-pad-sm) var(--cds-pad-xs); cursor: pointer; }
+.hs-pats li:first-child .hs-pat { border-top: 0; }
+.hs-pat:hover { background: var(--cds-chart-grid); }
+.hs-pat b { display: block; font-weight: 600; }
+.hs-pat .d { display: block; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-pat .go { color: var(--color-fg-muted); }
+.hs-chip { justify-self: start; font-size: .75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; margin-top: 2px; }
+.hs-chip.strong { color: var(--color-ok); } .hs-chip.some { color: var(--color-warn); } .hs-chip.info, .hs-chip.weak { color: var(--color-fg-muted); }
+@media (max-width: 560px) { .hs-pat { grid-template-columns: minmax(0, 1fr) auto; } .hs-pat .hs-chip { grid-column: 1 / -1; } }
+.hs-outlook { display: grid; gap: var(--cds-gap-md); }
+.hs-big { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--cds-gap-xs) var(--cds-gap-md); }
+.hs-big .v { font-family: var(--font-anthropic-serif); font-size: 2.4rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hs-big .l { font-size: var(--cds-font-size-body); max-width: 40ch; }
+.hs-sub { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); max-width: 80ch; }
+.hs-outlook h3 { margin: 0; font-size: var(--cds-font-size-body); font-weight: 600; }
+.hs-ok { color: var(--color-ok); font-weight: 600; } .hs-no { color: var(--color-bad); font-weight: 600; }
 .hs-dlg .hs-chart { min-height: 0; }
 .hs-dlg .hs-tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr)); gap: var(--cds-gap-sm); }
 .hs-dlg .hs-tile { padding: var(--cds-pad-md); }
@@ -190,6 +208,18 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     <div class="hs-tile"><span class="v" data-draw="t-recent" data-source="breakdowns" data-field="recent">—</span><span class="l">Reports in the last 90 days</span></div>
     <div class="hs-tile"><span class="v" data-draw="t-towns" data-source="breakdowns" data-field="towns">—</span><span class="l">Towns with at least one report</span></div>
     <div class="hs-tile"><span class="v" data-draw="t-last" data-source="breakdowns" data-field="last">—</span><span class="l">Most recent report, <span data-draw="t-ago">—</span></span></div>
+  </section>
+
+  <section class="hs-card" id="outlook">
+    <h2>Outlook: where past reports point next</h2>
+    <p class="note">A forecast built only from past reports. It knows nothing about planned operations. Each part shows only when the past data supports it, and it says how often this method would have been right before.</p>
+    <div class="hs-outlook" data-draw="outlook" data-source="incidents"></div>
+  </section>
+
+  <section class="hs-card" id="patterns">
+    <h2>Patterns</h2>
+    <p class="note">Checked automatically each time the data updates. A pattern shows only when the numbers support it. Small numbers can still mislead, so each one says how many reports it rests on.</p>
+    <ul class="hs-pats" data-draw="patterns" data-source="incidents"></ul>
   </section>
 
   <section class="hs-card" id="towns">
@@ -727,11 +757,10 @@ dash.draw('list', (tbody) => {
     $b.replaceChildren();
     try { v.build($b); } catch (e) { console.error(e); $b.appendChild(E('p', 'note', 'Something went wrong drawing this view.')); }
   };
-  const go = (v, fresh) => { if (fresh) stack = []; stack.push(v); if (!dlg.open) dlg.showModal(); render(); dlg.scrollTop = 0; };
+  const go = (v, fresh) => { if (fresh || !dlg.open) stack = []; stack.push(v); if (!dlg.open) dlg.showModal(); render(); dlg.scrollTop = 0; };
   $back.addEventListener('click', () => { stack.pop(); render(); dlg.scrollTop = 0; });
   $x.addEventListener('click', () => dlg.close());
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
-  dlg.addEventListener('close', () => { stack = []; $b.replaceChildren(); });
   let rt; window.addEventListener('resize', () => { if (!dlg.open) return; clearTimeout(rt); rt = setTimeout(render, 150); });
 
   // Building blocks
@@ -947,6 +976,277 @@ dash.draw('list', (tbody) => {
     },
   });
 
+  // Pattern finder: each check reports only what the numbers support
+  const binTail = (k, n, p) => { if (k <= 0) return 1; let pmf = Math.pow(1 - p, n), cdf = 0; for (let i = 0; i < k; i++) { cdf += pmf; pmf = pmf * (n - i) / (i + 1) * p / (1 - p); } return Math.max(0, 1 - cdf); };
+  const strength = (p) => (p < 0.05 ? ['Clear', 'strong'] : ['Possible', 'some']);
+  const chanceText = (p) => (p < 0.01 ? '1 time in 100' : p < 0.05 ? '1 time in 20' : '1 time in 10');
+  const pctOf = (a, b) => Math.round(100 * a / b) + '%';
+  const iso = (t) => new Date(t).toISOString().slice(0, 10);
+  const findPatterns = (rows, opts = {}) => {
+    const out = []; const n = rows.length;
+    if (!n) return out;
+    const inTown = (r) => !opts.town || r.town === opts.town;
+
+    // Rising or falling
+    const rec = rows.filter((r) => ageDays(r) <= 90).length;
+    const prev = rows.filter((r) => ageDays(r) > 90 && ageDays(r) <= 180).length;
+    if (rec + prev >= 4) {
+      const tot = rec + prev;
+      const p = Math.min(1, 2 * Math.min(binTail(rec, tot, 0.5), binTail(prev, tot, 0.5)));
+      if (p < 0.1) {
+        const up = rec > prev;
+        out.push({ kind: 'trend', chip: [up ? 'Rising' : 'Falling', p < 0.05 ? 'strong' : 'some'],
+          head: `Reports are ${up ? 'rising' : 'falling'}: ${rec} in the last 90 days, ${up ? 'up' : 'down'} from ${prev} in the 90 days before.`,
+          detail: `A change this big would happen by chance less than ${chanceText(p)}.`, n: tot, open: () => go(V.recent()) });
+      } else {
+        out.push({ kind: 'trend', chip: ['Steady', 'weak'], head: `No clear change: ${rec} reports in the last 90 days and ${prev} in the 90 days before.`,
+          detail: 'The difference is small enough to be chance.', n: tot, open: () => go(V.recent()) });
+      }
+    }
+
+    // Busiest week
+    if (n >= 3) {
+      const ds = rows.map((r) => Date.parse(r.date + 'T00:00:00Z')).sort((a, b) => a - b);
+      let best = { k: 0 };
+      for (let i = 0; i < ds.length; i++) { let j = i; while (j + 1 < ds.length && ds[j + 1] - ds[i] <= 6 * DAY) j++; if (j - i + 1 > best.k) best = { k: j - i + 1, a: ds[i], b: ds[j] }; }
+      const weeks = Math.max(1, (ds[ds.length - 1] - ds[0]) / DAY / 7);
+      const avg = n / weeks;
+      if (best.k >= 3 && best.k >= 3 * avg) {
+        const a = iso(best.a), b = iso(best.b);
+        const towns = byCount(rows.filter((r) => r.date >= a && r.date <= b), (r) => r.town);
+        out.push({ kind: 'burst', chip: ['Cluster', 'some'], head: `Busiest week: ${best.k} reports from ${hsDate(a)} to ${hsDate(b)}.`,
+          detail: `In ${towns.join(', ')}. The average is ${avg < 1 ? 'less than 1' : 'about ' + Math.round(avg)} a week.`, n: best.k,
+          open: () => go(listView('Reports from ' + hsDate(a) + ' to ' + hsDate(b), (r) => r.date >= a && r.date <= b && inTown(r))) });
+      }
+    }
+
+    // Which towns lead
+    if (!opts.noTown && n >= 5) {
+      const t = d3.rollups(rows, (v) => v.length, (r) => r.town).sort((a, b) => b[1] - a[1]);
+      if (t.length >= 2 && t[0][1] / n >= 0.35 && t[0][1] > t[1][1]) {
+        out.push({ kind: 'town', chip: ['Most reports', 'info'], head: `${t[0][0]} has the most reports: ${t[0][1]} of ${n} (${pctOf(t[0][1], n)}).`,
+          detail: `Next is ${t[1][0]} with ${t[1][1]}. Bigger towns tend to have more reports, so this is a count, not a rate.`, n, open: () => go(V.town(t[0][0])) });
+      }
+      const rr = rows.filter((r) => ageDays(r) <= 90);
+      const rt = d3.rollups(rr, (v) => v.length, (r) => r.town).sort((a, b) => b[1] - a[1]);
+      if (rr.length >= 4 && t.length && rt[0][0] !== t[0][0] && (!rt[1] || rt[0][1] > rt[1][1])) {
+        out.push({ kind: 'town', chip: ['Shift', 'info'], head: `${rt[0][0]} leads lately: ${rt[0][1]} of the ${rr.length} reports in the last 90 days.`,
+          detail: `${t[0][0]} still leads over all time.`, n: rr.length, open: () => go(V.town(rt[0][0])) });
+      }
+    }
+
+    // Day of the week (tested against an even spread, corrected for picking the top day)
+    if (n >= 8) {
+      const w = d3.rollups(rows, (v) => v.length, wdOf).sort((a, b) => b[1] - a[1]);
+      const p = Math.min(1, 7 * binTail(w[0][1], n, 1 / 7));
+      if (p < 0.1) {
+        out.push({ kind: 'weekday', chip: strength(p), head: `${WDL[WD.indexOf(w[0][0])]}s stand out: ${w[0][1]} of ${n} reports.`,
+          detail: `An even spread would give about ${Math.max(1, Math.round(n / 7))}. A gap this big would happen by chance less than ${chanceText(p)}. Many alerts are dated by the day they were filed.`, n,
+          open: () => go(opts.town ? listView(opts.town + ' on ' + WDL[WD.indexOf(w[0][0])] + 's', (r) => inTown(r) && wdOf(r) === w[0][0]) : V.weekday(w[0][0])) });
+      }
+    }
+
+    // Time of day
+    const timed = rows.filter(isTime);
+    if (timed.length >= 4) {
+      const inB = timed.filter((r) => toH(r.time) >= 9 && toH(r.time) <= 15).length;
+      if (inB / timed.length >= 0.75) {
+        out.push({ kind: 'time', chip: timed.length >= 10 ? ['Clear', 'strong'] : ['Possible', 'some'],
+          head: `${inB} of ${timed.length} reports with a time happened between 9 a.m. and 3 p.m.`,
+          detail: timed.length < 10 ? 'Only a few reports give a time, so this could change.' : 'Most reports give no time, so this covers only some of them.', n: timed.length,
+          open: () => go(opts.town ? listView(opts.town + ': reports with a time', (r) => inTown(r) && isTime(r)) : V.hours()) });
+      }
+    }
+
+    // Most common type of place
+    const given = rows.filter((r) => placeOf(r) !== 'Not given');
+    if (given.length >= 4) {
+      const pt = d3.rollups(given, (v) => v.length, placeOf).sort((a, b) => b[1] - a[1]);
+      if (pt[0][1] >= 2 && pt[0][1] / given.length >= 0.4 && (!pt[1] || pt[0][1] > pt[1][1])) {
+        out.push({ kind: 'placetype', chip: given.length >= 10 ? ['Clear', 'strong'] : ['Possible', 'some'],
+          head: `${pt[0][0]} is the most common place: ${pt[0][1]} of ${given.length} reports that name a place.`,
+          detail: `${n - given.length} reports give no place.`, n: given.length,
+          open: () => go(listView(pt[0][0], (r) => inTown(r) && placeOf(r) === pt[0][0])) });
+      }
+    }
+
+    // Same place reported more than once
+    const norm = (s) => (s || '').trim().toLowerCase();
+    d3.groups(rows.filter((r) => norm(r.place) && norm(r.place) !== 'not given'), (r) => norm(r.place) + '|' + r.town)
+      .filter((g) => g[1].length >= 2)
+      .forEach(([, v]) => out.push({ kind: 'place', chip: ['Repeat place', 'some'], head: `${v[0].place} in ${v[0].town} has ${v.length} reports.`,
+        detail: 'Dates: ' + v.map((r) => hsDate(r.date)).sort().join(', ') + '.', n: v.length,
+        open: () => go(listView(v[0].place + ', ' + v[0].town, (r) => r.town === v[0].town && norm(r.place) === norm(v[0].place))) }));
+    return out;
+  };
+  const patItem = (p) => {
+    const li = E('li');
+    const btn = E('button', 'hs-pat'); btn.type = 'button';
+    const txt = E('span');
+    txt.append(E('b', null, p.head), E('span', 'd', p.detail + ' Based on ' + plural(p.n, 'report') + '.'));
+    btn.append(E('span', 'hs-chip ' + p.chip[1], p.chip[0]), txt, E('span', 'go', '›'));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); p.open(); });
+    li.appendChild(btn);
+    return li;
+  };
+  const patList = (pats, empty) => {
+    const ul = E('ul', 'hs-pats');
+    if (!pats.length) ul.appendChild(E('li', 'note', empty || 'No clear patterns in this view yet.'));
+    pats.forEach((p) => ul.appendChild(patItem(p)));
+    return ul;
+  };
+  const patSection = (b, pats, empty) => { section(b, 'Patterns').appendChild(patList(pats, empty)); };
+
+  dash.draw('patterns', (ul) => {
+    const d = dash.data('incidents');
+    ul.replaceChildren();
+    if (d.status !== 'ok') return;
+    const pats = findPatterns(scoped()).filter((p) => p.kind !== 'trend' || p.chip[1] !== 'weak');
+    const list = patList(pats);
+    ul.append(...list.childNodes);
+  });
+
+  V.patterns = () => ({
+    title: 'Patterns, in depth',
+    build: (b) => {
+      section(b, 'What the page found').appendChild(patList(findPatterns(scoped())));
+      const s = section(b, 'What the page checks');
+      const ul = E('ul', 'hs-steps');
+      ['Rising or falling: reports in the last 90 days against the 90 days before. Called a change only when chance would explain it less than 1 time in 10.',
+        'Busiest week: any 7 days with at least 3 reports and at least three times the usual weekly pace.',
+        'Leading town: a town with at least 35% of reports, and any town that leads the last 90 days but not all time.',
+        'Day of the week: the top day, tested against an even spread across the week.',
+        'Time of day: shown when at least 3 in 4 reports with a time fall between 9 a.m. and 3 p.m.',
+        'Places: the most common type of place, and any exact place reported more than once.',
+        '"Clear" means the numbers are strong. "Possible" means it could still be chance or could change as reports come in.'].forEach((t) => ul.appendChild(E('li', null, t)));
+      s.appendChild(ul);
+    },
+  });
+
+  // Show matching patterns at the top of each detail panel
+  const withPats = (key, kinds, empty) => {
+    const orig = V[key];
+    V[key] = (a) => { const v = orig(a); const b0 = v.build; v.build = (b) => { patSection(b, findPatterns(scoped()).filter((p) => kinds.includes(p.kind)), empty); b0(b); }; return v; };
+  };
+  withPats('hours', ['time'], 'No time-of-day pattern yet. Too few reports give a time, or they are spread out.');
+  withPats('weekdays', ['weekday'], 'No day of the week stands out beyond what chance would give.');
+  withPats('months', ['trend', 'burst'], 'No clear rise, fall or cluster.');
+  withPats('towns', ['town', 'trend'], 'No town stands out.');
+  withPats('places', ['placetype', 'place'], 'No place type or exact place stands out.');
+  const townOrig = V.town;
+  V.town = (name) => { const v = townOrig(name); const b0 = v.build; v.build = (b) => { b0(b); const pats = findPatterns(scoped().filter((r) => r.town === name), { noTown: true, town: name }); const s = E('section', 'hs-dsec'); s.append(E('h3', null, 'Patterns in ' + name), patList(pats, 'No clear patterns for ' + name + ' yet.')); b.insertBefore(s, b.children[1] || null); }; return v; };
+
+  // Outlook: a simple forecast from past reports, checked against the past
+  const HALF = 90;
+  const scoreTowns = (rows, at) => {
+    const m = new Map();
+    rows.forEach((r) => { const age = (at - Date.parse(r.date + 'T00:00:00Z')) / DAY; if (age < 0) return; m.set(r.town, (m.get(r.town) || 0) + Math.pow(0.5, age / HALF)); });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const outlook = (rows) => {
+    const at = refDate();
+    const rec = rows.filter((r) => ageDays(r) >= 0 && ageDays(r) <= 90);
+    const rate = rec.length / 90;
+    const p7 = 1 - Math.exp(-rate * 7);
+    const sc = scoreTowns(rows, at);
+    const tot = d3.sum(sc, (d) => d[1]) || 1;
+    const towns = sc.map(([town, s]) => ({ town, share: s / tot, p7: 1 - Math.exp(-rate * 7 * s / tot) }));
+    // Back-test: for each past report, rank towns using only the reports before it
+    const sorted = rows.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const tests = [];
+    sorted.forEach((r) => {
+      const before = sorted.filter((x) => x.date < r.date);
+      if (before.length < 5) return;
+      const s = scoreTowns(before, Date.parse(r.date + 'T00:00:00Z'));
+      tests.push({ r, pick: s[0][0], hit: s[0][0] === r.town, k: s.length });
+    });
+    const hits = tests.filter((t) => t.hit).length;
+    const base = tests.length ? d3.mean(tests, (t) => 1 / t.k) : 0;
+    const pass = tests.length >= 5 && hits / tests.length > base + 0.05;
+    const pats = findPatterns(rows).filter((p) => ['time', 'weekday', 'placetype', 'place'].includes(p.kind) && p.chip[1] !== 'weak');
+    const trend = findPatterns(rows).find((p) => p.kind === 'trend');
+    return { rows, rec, rate, p7, towns, tests, hits, base, pass, pats, trend };
+  };
+  const btLine = (o) => (o.tests.length < 5
+    ? 'Not enough past reports yet to test how well this works.'
+    : `Tested on ${o.tests.length} past reports: the town it ranked first was right ${o.hits} times (${pctOf(o.hits, o.tests.length)}). A random pick among towns with earlier reports would be right about ${Math.round(o.base * 100)}% of the time.`);
+  const townBars = (o, onPick) => {
+    const box = E('div', 'hs-bars');
+    o.towns.forEach((t) => {
+      const line = E('div', 'hs-bar hs-pick'); line.tabIndex = 0; line.setAttribute('role', 'button');
+      line.setAttribute('aria-label', t.town + ': ' + pctOf(t.share, 1) + ' of the expected next report');
+      const tr = E('div', 'track'); const f = E('div', 'fill');
+      f.style.width = (t.share / o.towns[0].share) * 100 + '%'; f.style.background = dash.colors[0];
+      tr.appendChild(f);
+      line.append(E('span', null, t.town), tr, E('span', 'c', Math.round(t.share * 100) + '%'));
+      const act = (e) => { if (e) e.stopPropagation(); onPick(t.town); };
+      line.addEventListener('click', act);
+      line.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(e); } });
+      box.appendChild(line);
+    });
+    return box;
+  };
+  const buildOutlook = (host, o, full) => {
+    if (o.rows.length < 5) { host.appendChild(E('p', 'note', 'Not enough reports in this view to forecast anything.')); return; }
+    const big = E('div', 'hs-big');
+    big.append(E('span', 'v', Math.round(o.p7 * 100) + '%'), E('span', 'l', 'chance of at least one new report in the next 7 days, if the pace of the last 90 days holds.'));
+    host.appendChild(big);
+    host.appendChild(E('p', 'hs-sub', `${plural(o.rec.length, 'report')} in the last 90 days, about ${d3.format('.1f')(o.rate * 30)} a month.` + (o.trend && o.trend.chip[1] !== 'weak' ? ' ' + o.trend.head : '')));
+    const tw = E('div'); tw.style.display = 'grid'; tw.style.gap = 'var(--cds-gap-sm)';
+    if (o.pass) {
+      tw.appendChild(E('h3', null, 'Most likely town for the next report'));
+      tw.appendChild(townBars(o, (k) => go(V.town(k), !dlg.open)));
+      tw.appendChild(E('p', 'hs-sub', 'Share of the next report each town would get if it follows past reports, with recent ones counting more. Towns with no past reports are not listed but can still be affected.'));
+    } else {
+      tw.appendChild(E('h3', null, 'Most likely town'));
+      tw.appendChild(E('p', 'hs-sub', 'Not shown. Past reports have not picked the next town better than a guess, so a ranking here would mislead.'));
+    }
+    const bt = E('p', 'hs-sub'); bt.append(E('span', o.pass ? 'hs-ok' : 'hs-no', o.pass ? 'Beat a guess. ' : 'Did not beat a guess. '), document.createTextNode(btLine(o)));
+    tw.appendChild(bt);
+    host.appendChild(tw);
+    const wh = E('div'); wh.style.display = 'grid'; wh.style.gap = 'var(--cds-gap-xs)';
+    wh.appendChild(E('h3', null, 'When and what kind of place'));
+    wh.appendChild(o.pats.length ? patList(o.pats) : E('p', 'hs-sub', 'No time, day or place pattern is strong enough to show yet.'));
+    host.appendChild(wh);
+    if (!full) return;
+  };
+
+  dash.draw('outlook', (el) => {
+    el.replaceChildren();
+    if (dash.data('incidents').status !== 'ok') return;
+    buildOutlook(el, outlook(scoped()), false);
+  });
+
+  V.outlook = () => ({
+    title: 'Outlook, in depth',
+    build: (b) => {
+      const o = outlook(scoped());
+      const s1 = section(b, 'Forecast'); const box = E('div', 'hs-outlook'); s1.appendChild(box); buildOutlook(box, o, true);
+      if (o.rows.length < 5) return;
+      const s2 = section(b, 'Each town, next 7 days', 'Chance of at least one report in each town in the next 7 days, from the same pace and shares. Tap a town for everything about it.');
+      const w = E('div', 'hs-wrap'); const t = E('table'); const hr = E('tr');
+      ['Town', 'Share of next report', 'Chance in next 7 days', 'Reports, last 90 days'].forEach((x, i) => hr.appendChild(E('th', i ? 'n' : null, x)));
+      t.appendChild(E('thead')).appendChild(hr); const tb = t.appendChild(E('tbody'));
+      o.towns.forEach((x) => { const tr = E('tr', 'hs-pick'); tr.append(E('td', null, x.town), E('td', 'n', Math.round(x.share * 100) + '%'), E('td', 'n', Math.round(x.p7 * 100) + '%'), E('td', 'n', String(o.rec.filter((r) => r.town === x.town).length))); tr.addEventListener('click', () => go(V.town(x.town))); tb.appendChild(tr); });
+      w.appendChild(t); s2.appendChild(w);
+      if (!o.pass) s2.appendChild(E('p', 'note', 'These shares did not beat a guess on past reports. Read them as a summary of the past, not a forecast.'));
+      const s3 = section(b, 'How it did on past reports', btLine(o));
+      const w3 = E('div', 'hs-wrap hs-list'); const t3 = E('table'); const h3 = E('tr');
+      ['Date', 'Report was in', 'Ranked first', 'Right?'].forEach((x) => h3.appendChild(E('th', null, x)));
+      t3.appendChild(E('thead')).appendChild(h3); const tb3 = t3.appendChild(E('tbody'));
+      o.tests.slice().reverse().forEach((x) => { const tr = E('tr'); tr.append(E('td', null, x.r.date), E('td', null, x.r.town), E('td', null, x.pick), E('td', x.hit ? 'hs-ok' : null, x.hit ? 'Yes' : 'No')); tb3.appendChild(tr); });
+      w3.appendChild(t3); s3.appendChild(w3);
+      const s4 = section(b, 'How it works');
+      const ul = E('ul', 'hs-steps');
+      ['Pace: the number of reports in the last 90 days, spread evenly. The 7-day chance assumes reports keep coming at that pace.',
+        'Town: each past report counts 1 when new and half as much every 90 days. A town\'s share is its part of the total.',
+        'Check: for every past report, the method ranks towns using only the reports before it. If the top town is right more often than a random pick, the ranking is shown.',
+        'When and where: only patterns that pass the checks on the Patterns panel are shown.',
+        'Limits: it sees only reports that reached The ICE List, the news or this site\'s form. It cannot know about planned operations, and a quiet week does not mean a town is safe.'].forEach((x) => ul.appendChild(E('li', null, x)));
+      s4.appendChild(ul);
+    },
+  });
+
   window.hsDive = (key, arg) => { const f = V[key]; if (f) go(f(arg), true); };
 
   // Hook up the main page
@@ -961,7 +1261,7 @@ dash.draw('list', (tbody) => {
     hd.appendChild(btn);
     card.addEventListener('click', (e) => { if (e.target.closest('a, input, select, textarea')) return; hsDive(key); });
   };
-  hook('#towns', 'towns'); hook('#places', 'places'); hook('#kinds', 'kinds'); hook('#weekdays', 'weekdays'); hook('#hours', 'hours'); hook('#months', 'months');
+  hook('#outlook', 'outlook'); hook('#patterns', 'patterns'); hook('#towns', 'towns'); hook('#places', 'places'); hook('#kinds', 'kinds'); hook('#weekdays', 'weekdays'); hook('#hours', 'hours'); hook('#months', 'months');
 
   const pickBars = (sel, key) => {
     const el = document.querySelector(sel);
