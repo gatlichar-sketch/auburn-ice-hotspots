@@ -108,7 +108,23 @@ body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-fami
 .hs-help { display: grid; gap: var(--cds-gap-sm); }
 .hs-help ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; font-size: var(--cds-font-size-caption); }
 .hs-foot { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-lg); }
-a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.hs-form { display: grid; gap: var(--cds-gap-md); }
+.hs-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--cds-gap-md); }
+.hs-field { display: grid; gap: var(--cds-gap-xs); font-size: var(--cds-font-size-caption); min-width: 0; }
+.hs-field.wide { grid-column: 1 / -1; }
+.hs-field span { color: var(--color-fg); font-weight: 600; }
+.hs-field small { color: var(--color-fg-muted); font-weight: 400; }
+.hs-field input, .hs-field select, .hs-field textarea { font: inherit; font-size: var(--cds-font-size-body); padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); width: 100%; box-sizing: border-box; }
+.hs-field textarea { min-height: 5rem; resize: vertical; }
+.hs-btn { font: inherit; font-weight: 600; padding: var(--cds-pad-sm) var(--cds-pad-lg); border: 0; border-radius: var(--cds-radius); background: var(--color-fg); color: var(--color-bg); cursor: pointer; justify-self: start; text-decoration: none; display: inline-block; }
+.hs a.hs-btn { color: var(--color-bg); text-decoration: none; }
+.hs-btn[disabled] { opacity: .6; cursor: wait; }
+.hs-warn { margin: 0; font-size: var(--cds-font-size-caption); border-left: 3px solid var(--color-warn); padding-left: var(--cds-pad-sm); max-width: 80ch; }
+.hs-status { margin: 0; font-size: var(--cds-font-size-caption); min-height: 1.4em; }
+.hs-status.ok { color: var(--color-ok); } .hs-status.bad { color: var(--color-bad); }
+.hs-hp { position: absolute; left: -9999px; }
+.hs-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; font-size: var(--cds-font-size-caption); max-width: 80ch; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -208,6 +224,54 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
   </section>
 
 
+  <section class="hs-card" id="report">
+    <h2>Report a sighting</h2>
+    <p class="note">Reports are reviewed before anything is posted. A sighting goes on the site only after a second, independent source confirms it, such as a news story or another report of the same event.</p>
+    <p class="hs-warn">Do not include anyone's name, photo, license plate or social media handle. Describe the place and what happened.</p>
+    <form class="hs-form" id="hs-report-form" novalidate>
+      <div class="hs-fields">
+        <label class="hs-field"><span>Town</span>
+          <select name="town" required>
+            <option value="">Choose a town</option>
+            <option>Auburn</option><option>Kent</option><option>Federal Way</option><option>Algona</option><option>Pacific</option><option>Milton</option><option>Edgewood</option><option>Sumner</option><option>Bonney Lake</option><option>Covington</option><option>Maple Valley</option><option>Black Diamond</option><option>Enumclaw</option>
+            <option>Tacoma</option><option>Renton</option><option>Burien</option><option>Puyallup</option><option>Fife</option><option>Tukwila</option><option>SeaTac</option><option>Des Moines</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label class="hs-field"><span>Date</span><input type="date" name="date" required></label>
+        <label class="hs-field"><span>Time <small>(if known)</small></span><input type="time" name="time"></label>
+        <label class="hs-field"><span>Place type</span>
+          <select name="place_type">
+            <option>Not sure</option><option>Street or vehicle stop</option><option>Workplace</option><option>Restaurant or store</option><option>Government building</option><option>Home or apartment</option><option>ICE check-in</option><option>School or church</option><option>Other</option>
+          </select>
+        </label>
+        <label class="hs-field wide"><span>Where <small>(street, intersection or business)</small></span><input type="text" name="place" maxlength="200" required></label>
+        <label class="hs-field wide"><span>What happened</span><textarea name="what" maxlength="1500" required></textarea></label>
+        <label class="hs-field wide"><span>Link <small>(news story, post or video, if any)</small></span><input type="url" name="link" maxlength="500" placeholder="https://"></label>
+        <label class="hs-field"><span>How do you know?</span>
+          <select name="how">
+            <option>I saw it myself</option><option>Someone I know saw it</option><option>I saw it online</option><option>News report</option>
+          </select>
+        </label>
+      </div>
+      <label class="hs-hp" aria-hidden="true">Leave this empty <input type="text" name="_gotcha" tabindex="-1" autocomplete="off"></label>
+      <button class="hs-btn" type="submit">Send report</button>
+      <p class="hs-status" id="hs-report-status" role="status"></p>
+    </form>
+  </section>
+
+  <section class="hs-card" id="locate">
+    <h2>Find someone who may be detained</h2>
+    <p class="note">ICE's Online Detainee Locator is the official search. It only shows people currently held by ICE, and it can take a day or two after an arrest for someone to appear.</p>
+    <ol class="hs-steps">
+      <li>Search by <b>A-Number</b> (the 9-digit immigration case number) and country of birth. This is the most reliable way.</li>
+      <li>Or search by <b>first name, last name and country of birth</b>. Spell the name the way it appears on official papers. Try other spellings and both last names if the person uses two.</li>
+      <li>If nothing comes up, call the <a href="https://www.ice.gov/field-office/seattle-field-office" target="_blank" rel="noopener">ICE Seattle Field Office</a> (phone number on that page) or contact a legal-help group below. Most people arrested in this area are taken to the Northwest ICE Processing Center in Tacoma.</li>
+    </ol>
+    <a class="hs-btn" href="https://locator.ice.gov/odls/" target="_blank" rel="noopener">Open the ICE Detainee Locator</a>
+    <p class="note">This site does not store or search for anyone's name. The search happens on ICE's site.</p>
+  </section>
+
   <section class="hs-card hs-help" id="help">
     <h2>If you or someone you know needs help</h2>
     <ul>
@@ -215,6 +279,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
       <li><a href="https://www.immigrationadvocates.org/nonprofit/legaldirectory/" target="_blank" rel="noopener">National Immigration Legal Services Directory</a>: free or low-cost legal help by location.</li>
       <li><a href="https://www.wehaverights.us/" target="_blank" rel="noopener">We Have Rights</a>: know-your-rights videos and guides in several languages.</li>
       <li><a href="https://www.nilc.org/resources/know-your-rights-card/" target="_blank" rel="noopener">NILC know-your-rights card</a>: a printable card.</li>
+      <li><a href="https://www.oig.dhs.gov/hotline" target="_blank" rel="noopener">DHS Inspector General hotline</a>: report misconduct by an ICE officer. You do not need the officer's name.</li>
+      <li><a href="https://www.dhs.gov/file-civil-rights-complaint" target="_blank" rel="noopener">DHS Office for Civil Rights and Civil Liberties</a>: file a civil rights complaint about how someone was treated.</li>
     </ul>
   </section>
 
@@ -560,6 +626,34 @@ dash.draw('list', (tbody) => {
     tbody.appendChild(tr);
   }
 });
+
+// Sighting form (sent to Formspree, reviewed before anything is posted)
+window.HS_FORM_ENDPOINT = 'https://formspree.io/f/maeoqrdp';
+(() => {
+  const form = document.getElementById('hs-report-form');
+  const status = document.getElementById('hs-report-status');
+  if (!form) return;
+  const today = hsPT(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+  form.elements.date.max = today;
+  const say = (text, cls) => { status.textContent = text; status.className = 'hs-status' + (cls ? ' ' + cls : ''); };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!form.checkValidity()) { say('Please fill in the town, date, where and what happened.', 'bad'); form.reportValidity(); return; }
+    if (HS_FORM_ENDPOINT.includes('FORM_ID_HERE')) { say('The report form is not connected yet. Please try again later.', 'bad'); return; }
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true; say('Sending...');
+    const fd = new FormData(form);
+    fd.append('_subject', 'ICE sighting report: ' + (fd.get('town') || '') + ' ' + (fd.get('date') || ''));
+    try {
+      const r = await fetch(HS_FORM_ENDPOINT, { method: 'POST', body: fd, headers: { Accept: 'application/json' } });
+      if (!r.ok) throw new Error('bad status');
+      form.reset();
+      say('Thank you. Your report was sent and will be reviewed. It shows on the site once a second source confirms it.', 'ok');
+    } catch (err) {
+      say('It did not send. Check your connection and try again.', 'bad');
+    } finally { btn.disabled = false; }
+  });
+})();
 </script>
 
 </body>
