@@ -119,6 +119,14 @@ body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-fami
 .hs-btn { font: inherit; font-weight: 600; padding: var(--cds-pad-sm) var(--cds-pad-lg); border: 0; border-radius: var(--cds-radius); background: var(--color-fg); color: var(--color-bg); cursor: pointer; justify-self: start; text-decoration: none; display: inline-block; }
 .hs a.hs-btn { color: var(--color-bg); text-decoration: none; }
 .hs-btn[disabled] { opacity: .6; cursor: wait; }
+.hs-cams { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--cds-gap-md); }
+.hs-cam { margin: 0; display: grid; gap: var(--cds-gap-xs); min-width: 0; }
+.hs-cam a { display: block; aspect-ratio: 4 / 3; background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+.hs-cam img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hs-cam figcaption { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-cam figcaption b { color: var(--color-fg); font-weight: 600; }
+.hs-camtabs { flex-wrap: wrap; }
+.hs-data ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; font-size: var(--cds-font-size-caption); max-width: 80ch; }
 .hs-warn { margin: 0; font-size: var(--cds-font-size-caption); border-left: 3px solid var(--color-warn); padding-left: var(--cds-pad-sm); max-width: 80ch; }
 .hs-status { margin: 0; font-size: var(--cds-font-size-caption); min-height: 1.4em; }
 .hs-status.ok { color: var(--color-ok); } .hs-status.bad { color: var(--color-bad); }
@@ -286,6 +294,21 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   </section>
 
 
+  <section class="hs-card" id="cameras">
+    <h2>Live WSDOT road cameras near reported areas</h2>
+    <p class="note">Public traffic cameras from the Washington State Department of Transportation, on highways through the towns with the most reports. Images refresh about every 2 minutes. Tap an image to open it on WSDOT's map.</p>
+    <p class="hs-warn">These cameras show traffic only. They are low resolution, and ICE often uses unmarked cars, so a camera image cannot confirm or rule out ICE activity. Do not post screenshots that show license plates or faces.</p>
+    <div class="hs-seg hs-camtabs" role="group" aria-label="Choose an area">
+      <button type="button" class="hs-camtab" data-v="Auburn" aria-pressed="true">Auburn and Algona</button>
+      <button type="button" class="hs-camtab" data-v="Kent" aria-pressed="false">Kent</button>
+      <button type="button" class="hs-camtab" data-v="Federal Way" aria-pressed="false">Federal Way</button>
+      <button type="button" class="hs-camtab" data-v="Tacoma" aria-pressed="false">Tacoma and Fife</button>
+    </div>
+    <div class="hs-cams" id="hs-cams"></div>
+    <p class="note" id="hs-cams-time"></p>
+    <a class="hs-btn" href="https://wsdot.wa.gov/travel/real-time/cameras" target="_blank" rel="noopener">See all WSDOT cameras</a>
+  </section>
+
   <section class="hs-card" id="report">
     <h2>Report a sighting</h2>
     <p class="note">Reports are reviewed before anything is posted. A sighting goes on the site only after a second, independent source confirms it, such as a news story or another report of the same event.</p>
@@ -334,6 +357,17 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     <p class="note">This site does not store or search for anyone's name. The search happens on ICE's site.</p>
   </section>
 
+  <section class="hs-card hs-data" id="plates">
+    <h2>Your car, license plate cameras and ICE</h2>
+    <p class="note">What state law and state records say about plate and driver data reaching immigration agents.</p>
+    <ul>
+      <li><b>License plate cameras.</b> Senate Bill 6002, signed March 30, 2026 and in effect right away, bars police plate readers (often Flock cameras) from being used for immigration enforcement. They also cannot collect data near immigration or protected health care facilities, schools, courts, food banks or places of worship. Data must be deleted after 21 days unless it is evidence, and can only be shared in court proceedings. <a href="https://www.opb.org/article/2026/03/31/washington-adds-safeguards-flock-cameras/" target="_blank" rel="noopener">OPB</a></li>
+      <li><b>Driver and plate records.</b> The governor's office says the state blocked 108,170 attempts by federal immigration agencies to search Washington driver and plate records from November 2025 to July 2026. ICE and Homeland Security Investigations lost access, and Customs and Border Protection access was suspended. <a href="https://www.opb.org/article/2026/07/27/washington-has-blocked-over-100000-federal-attempts-to-access-license-plate-data/" target="_blank" rel="noopener">OPB</a></li>
+      <li><b>Gaps remain.</b> UW Center for Human Rights researchers report that federal agents have kept getting driver data through state systems, sometimes by searching again under a different agency code. <a href="https://jsis.washington.edu/humanrights/2026/07/27/dol-data-sharing-continues-july-2026-update/" target="_blank" rel="noopener">UW Center for Human Rights</a></li>
+      <li><b>WSDOT traffic cameras</b> are a separate system. They stream live pictures for traffic and are not plate readers.</li>
+    </ul>
+  </section>
+
   <section class="hs-card hs-help" id="help">
     <h2>If you or someone you know needs help</h2>
     <ul>
@@ -357,6 +391,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
       <dd>Keeps reports backed by video, a court record, eyewitness detail matched to ICE's FOIA arrest log, or a news report. Drops unconfirmed community alerts and index listings.</dd>
       <dt>Wider area</dt>
       <dd>Tacoma, Burien, Renton, Puyallup, Fife and Tukwila entries come from the site's index. Their pages were not opened, so they have no place or time. One undated Tacoma alert is left out.</dd>
+      <dt>Road cameras</dt>
+      <dd>Live images come straight from WSDOT's public camera feed (images.wsdot.wa.gov). This site does not save them. Cameras sometimes go offline for maintenance.</dd>
       <dt>Left out</dt>
       <dd>Reports that never reached The ICE List. Arrest totals in ICE's own data, which count people rather than places. Anything about future operations, which no public source here describes.</dd>
       <dt>Updates</dt>
@@ -1315,5 +1351,65 @@ window.HS_FORM_ENDPOINT = 'https://formspree.io/f/maeoqrdp';
 })();
 </script>
 
+<script>
+(() => {
+  const B = 'https://images.wsdot.wa.gov/';
+  const CAMS = {
+    'Auburn': [
+      ['SR 167 at W Main St', 'nw/167vc01477.jpg'],
+      ['SR 167 at 15th St SW', 'nw/167vc01386.jpg'],
+      ['SR 18 at C St', 'nw/018vc00369.jpg'],
+      ['SR 18 at Auburn Way', 'nw/018vc00421.jpg'],
+      ['SR 167 at Ellingson Rd (Algona, Pacific)', 'nw/167vc01213.jpg'],
+      ['SR 18 at SR 167', 'nw/018vc00286.jpg']
+    ],
+    'Kent': [
+      ['SR 167 at Willis St', 'nw/167vc01964.jpg'],
+      ['SR 167 at S 212th St', 'nw/167vc02241.jpg'],
+      ['SR 167 at S 277th St', 'nw/167vc01791.jpg'],
+      ['SR 516 at I-5', 'nw/005vc14918.jpg'],
+      ['I-5 at S 272nd St', 'nw/005vc14683.jpg']
+    ],
+    'Federal Way': [
+      ['I-5 at S 320th St', 'nw/005vc14379.jpg'],
+      ['I-5 at SR 18', 'nw/005vc14196.jpg'],
+      ['SR 18 at Weyerhaeuser Way', 'nw/018vc00078.jpg'],
+      ['SR 18 at Peasley Canyon Rd', 'nw/018vc00198.jpg']
+    ],
+    'Tacoma': [
+      ['I-5 at 54th Ave E, Fife', 'orflow/005vc13750.jpg'],
+      ['I-5 at Port of Tacoma Rd', 'ORFlow/005vc13660.jpg'],
+      ['I-5 at Pacific Ave', 'orflow/005vc13371.jpg'],
+      ['SR 167 at 54th Ave E, Fife', 'orflow/167vc00039.jpg'],
+      ['SR 16 at Union Ave', 'ORFlow/016vc00110.jpg']
+    ]
+  };
+  const box = document.getElementById('hs-cams');
+  const when = document.getElementById('hs-cams-time');
+  if (!box) return;
+  let area = 'Auburn';
+  const fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' });
+  function draw() {
+    const t = Date.now();
+    box.replaceChildren(...CAMS[area].map(([name, path]) => {
+      const f = document.createElement('figure'); f.className = 'hs-cam';
+      const a = document.createElement('a'); a.href = 'https://wsdot.wa.gov/travel/real-time/cameras'; a.target = '_blank'; a.rel = 'noopener';
+      const img = document.createElement('img'); img.loading = 'lazy'; img.alt = 'WSDOT traffic camera: ' + name; img.src = B + path + '?t=' + t;
+      img.onerror = () => { a.replaceChildren(Object.assign(document.createElement('span'), { className: 'note', textContent: 'Camera offline right now.', style: 'display:grid;place-items:center;height:100%' })); };
+      a.append(img);
+      const c = document.createElement('figcaption'); c.innerHTML = '<b></b>'; c.firstChild.textContent = name;
+      f.append(a, c); return f;
+    }));
+    if (when) when.textContent = 'Images loaded ' + fmt.format(t) + ' Pacific. They refresh every 2 minutes while this page is open.';
+  }
+  document.querySelectorAll('.hs-camtab').forEach(b => b.addEventListener('click', () => {
+    area = b.dataset.v;
+    document.querySelectorAll('.hs-camtab').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    draw();
+  }));
+  draw();
+  setInterval(() => { if (!document.hidden) draw(); }, 120000);
+})();
+</script>
 </body>
 </html>
