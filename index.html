@@ -124,7 +124,37 @@ body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-fami
 .hs-status.ok { color: var(--color-ok); } .hs-status.bad { color: var(--color-bad); }
 .hs-hp { position: absolute; left: -9999px; }
 .hs-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; font-size: var(--cds-font-size-caption); max-width: 80ch; }
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.hs-hint { margin: calc(-1 * var(--cds-gap-md)) 0 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-cardhead { display: flex; justify-content: space-between; align-items: baseline; gap: var(--cds-gap-sm); }
+.hs-dive { font: inherit; font-size: var(--cds-font-size-caption); background: none; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 2px var(--cds-pad-sm); color: var(--color-fg); cursor: pointer; white-space: nowrap; }
+.hs-click { cursor: pointer; transition: border-color .15s; }
+.hs-click:hover { border-color: var(--color-fg-muted); }
+.hs-pick { cursor: pointer; border-radius: 3px; }
+.hs-pick:hover { background: var(--cds-chart-grid); }
+.hs-rank tbody tr { cursor: pointer; }
+.hs-rank tbody tr:hover td { background: var(--cds-chart-grid); }
+.hs-dlg { width: min(64rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--color-border-line); border-radius: 10px; background: var(--color-bg); color: var(--color-fg); overflow: auto; box-sizing: border-box; }
+.hs-dlg::backdrop { background: rgba(10, 15, 25, .55); }
+.hs-dlg-in { padding: 0 var(--cds-pad-lg) var(--cds-pad-lg); display: grid; gap: var(--cds-gap-md); }
+.hs-dlg-head { display: flex; gap: var(--cds-gap-sm); align-items: center; position: sticky; top: 0; background: var(--color-bg); padding-block: var(--cds-pad-md) var(--cds-pad-xs); z-index: 3; }
+.hs-dlg-title { margin: 0; flex: 1; min-width: 0; font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 1.5rem; line-height: 1.25; }
+.hs-dlg-btn { font: inherit; font-size: var(--cds-font-size-caption); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); color: var(--color-fg); cursor: pointer; white-space: nowrap; }
+.hs-dlg-sub { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-dlg-body { display: grid; gap: var(--cds-gap-md); }
+.hs-dsec { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); min-width: 0; }
+.hs-dsec h3 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: 600; }
+.hs-dsec .note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-heat td.c { text-align: center; min-width: 2.2rem; border-radius: 3px; cursor: pointer; }
+.hs-heat td.c.z { color: var(--color-fg-muted); cursor: default; }
+.hs-heat th[scope="row"] { white-space: nowrap; color: var(--color-fg); }
+.hs-heat td.n { text-align: right; font-weight: 600; }
+.hs-dlg .hs-chart { min-height: 0; }
+.hs-dlg .hs-tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr)); gap: var(--cds-gap-sm); }
+.hs-dlg .hs-tile { padding: var(--cds-pad-md); }
+.hs-dlg .hs-tile .v { font-size: 1.5rem; }
+.hs-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs-legend i { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, td[role="button"]:focus-visible, .hs-tile:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -152,6 +182,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
       <button type="button" class="hs-ev" data-v="evidence" aria-pressed="false">Only with evidence</button>
     </div>
   </div>
+
+  <p class="hs-hint">Tap any section, bar, column or town for a closer look.</p>
 
   <section class="hs-tiles" id="totals">
     <div class="hs-tile"><span class="v" data-draw="t-n" data-source="breakdowns" data-field="n">—</span><span class="l">Reports, all time</span></div>
@@ -520,7 +552,7 @@ const bars = (name, dim, colorIndex) => dash.draw(name, (el) => {
   const s = rows.slice().sort((a, b) => b.n - a.n || a.key.localeCompare(b.key));
   const max = d3.max(s, (x) => x.n) || 1;
   for (const r of s) {
-    const line = document.createElement('div'); line.className = 'hs-bar';
+    const line = document.createElement('div'); line.className = 'hs-bar hs-pick'; line.dataset.k = r.key;
     const l = document.createElement('span'); l.textContent = r.key;
     const tr = document.createElement('div'); tr.className = 'track';
     const f = document.createElement('div'); f.className = 'fill';
@@ -554,7 +586,9 @@ const columns = (name, dim, labelFmt, headFmt, tickEvery) => dash.draw(name, (el
     .attr('x', (d) => x(d.key) + Math.max(0, (x.bandwidth() - 32) / 2)).attr('width', Math.min(32, x.bandwidth()))
     .attr('y', (d) => y(d.n)).attr('height', (d) => y(0) - y(d.n)).attr('rx', 2).attr('fill', dash.colors[0])
     .on('pointermove', (event, d) => hsShowTip(el, tip, event, headFmt(d.key), d3.format(',')(d.n) + (d.n === 1 ? ' report' : ' reports')))
-    .on('pointerleave', () => { tip.hidden = true; });
+    .on('pointerleave', () => { tip.hidden = true; })
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => { event.stopPropagation(); hsDive(dim, d.key); });
   const every = tickEvery(W, data.length);
   svg.append('g').selectAll('text').data(data.filter((d, i) => i % every === 0)).join('text')
     .attr('x', (d) => x(d.key) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle')
@@ -626,6 +660,331 @@ dash.draw('list', (tbody) => {
     tbody.appendChild(tr);
   }
 });
+
+// Drill-down panels: tap a section, bar, column, town or tile to open a closer look
+(() => {
+  const root = document.querySelector('.hs');
+  const E = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const dlg = E('dialog', 'hs-dlg');
+  dlg.setAttribute('aria-labelledby', 'hs-dlg-title');
+  const inner = E('div', 'hs-dlg-in');
+  const head = E('div', 'hs-dlg-head');
+  const $back = E('button', 'hs-dlg-btn', '‹ Back'); $back.type = 'button'; $back.hidden = true;
+  const $t = E('h2', 'hs-dlg-title'); $t.id = 'hs-dlg-title';
+  const $x = E('button', 'hs-dlg-btn', 'Close'); $x.type = 'button';
+  head.append($back, $t, $x);
+  const $s = E('p', 'hs-dlg-sub');
+  const $b = E('div', 'hs-dlg-body');
+  inner.append(head, $s, $b); dlg.appendChild(inner); root.appendChild(dlg);
+
+  const DAY = 864e5;
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const BANDS = [['early', 'Before 9 a.m.', 0, 9], ['morning', '9 a.m. to noon', 9, 12], ['afternoon', 'Noon to 3 p.m.', 12, 15], ['late', 'After 3 p.m.', 15, 24]];
+  const isTime = (r) => /^\d{2}:\d{2}$/.test(r.time || '');
+  const toH = (t) => +t.slice(0, 2) + +t.slice(3, 5) / 60;
+  const band = (r) => BANDS.find((b) => toH(r.time) >= b[2] && toH(r.time) < b[3])[0];
+  const bandName = (k) => BANDS.find((b) => b[0] === k)[1];
+  const wdOf = (r) => WD[new Date(r.date + 'T00:00:00Z').getUTCDay()];
+  const mOf = (r) => r.date.slice(0, 7);
+  const mLabel = (k) => d3.utcFormat('%b %y')(new Date(k + '-01T00:00:00Z'));
+  const mLong = (k) => d3.utcFormat('%B %Y')(new Date(k + '-01T00:00:00Z'));
+  const plural = (n, w) => d3.format(',')(n) + ' ' + w + (n === 1 ? '' : 's');
+  const placeOf = (r) => r.place_type || 'Not given';
+
+  const scoped = () => {
+    const d = dash.data('incidents');
+    if (d.status !== 'ok') return [];
+    const p = dash.params();
+    return d.data.filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.date || '') && ((p.area || 'core') === 'wide' || r.area === 'core') && ((p.evidence || 'all') === 'all' || r.evidence));
+  };
+  const scopeLabel = () => {
+    const p = dash.params();
+    return ((p.area || 'core') === 'wide' ? 'Auburn area plus Tacoma, Renton and others' : 'Auburn and nearby towns') + ' · ' + ((p.evidence || 'all') === 'all' ? 'all reports' : 'only reports with evidence');
+  };
+  const refDate = () => {
+    const d = dash.data('incidents');
+    const v = d.status === 'ok' ? d.data.reduce((m, r) => (r.as_of > m ? r.as_of : m), '') : '';
+    return v ? Date.parse(v + 'T00:00:00Z') : Date.now();
+  };
+  const ageDays = (r) => (refDate() - Date.parse(r.date + 'T00:00:00Z')) / DAY;
+  const monthsOf = (rows) => {
+    if (!rows.length) return [];
+    let m = d3.min(rows, mOf); const end = d3.max(rows, mOf); const out = [];
+    while (m <= end) { out.push(m); const [y, mo] = m.split('-').map(Number); m = mo === 12 ? (y + 1) + '-01' : y + '-' + String(mo + 1).padStart(2, '0'); }
+    return out;
+  };
+  const byCount = (rows, keyFn) => d3.rollups(rows, (v) => v.length, keyFn).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))).map((d) => d[0]);
+
+  // Navigation
+  let stack = [];
+  const render = () => {
+    const v = stack[stack.length - 1];
+    if (!v) return;
+    $t.textContent = v.title;
+    $s.textContent = scopeLabel() + (v.sub ? ' · ' + v.sub : '');
+    $back.hidden = stack.length < 2;
+    $b.replaceChildren();
+    try { v.build($b); } catch (e) { console.error(e); $b.appendChild(E('p', 'note', 'Something went wrong drawing this view.')); }
+  };
+  const go = (v, fresh) => { if (fresh) stack = []; stack.push(v); if (!dlg.open) dlg.showModal(); render(); dlg.scrollTop = 0; };
+  $back.addEventListener('click', () => { stack.pop(); render(); dlg.scrollTop = 0; });
+  $x.addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('close', () => { stack = []; $b.replaceChildren(); });
+  let rt; window.addEventListener('resize', () => { if (!dlg.open) return; clearTimeout(rt); rt = setTimeout(render, 150); });
+
+  // Building blocks
+  const section = (body, title, note) => {
+    const s = E('section', 'hs-dsec');
+    s.appendChild(E('h3', null, title));
+    if (note) s.appendChild(E('p', 'note', note));
+    body.appendChild(s);
+    return s;
+  };
+  const reportTable = (rows) => {
+    const w = E('div', 'hs-wrap hs-list');
+    const t = E('table');
+    const hr = E('tr');
+    ['Date', 'Town', 'What was reported', 'Place', 'Time', 'Backed by'].forEach((x) => hr.appendChild(E('th', null, x)));
+    t.appendChild(E('thead')).appendChild(hr);
+    const tb = t.appendChild(E('tbody'));
+    rows.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || '')).forEach((r) => {
+      const tr = E('tr');
+      tr.append(E('td', null, r.date), E('td', null, r.town));
+      const c = E('td');
+      if (/^https:\/\/[^\s"'<>]+$/.test(r.url || '')) { const a = E('a', null, r.title); a.href = r.url; a.target = '_blank'; a.rel = 'noopener'; c.appendChild(a); } else c.textContent = r.title;
+      tr.append(c, E('td', null, r.place || placeOf(r)), E('td', null, r.time || ''));
+      const k = E('td'); k.appendChild(E('span', 'hs-kind' + (r.evidence ? ' ev' : ''), r.source_kind)); tr.appendChild(k);
+      tb.appendChild(tr);
+    });
+    if (!rows.length) { const tr = E('tr'); const td = E('td', null, 'No reports in this view.'); td.colSpan = 6; tr.appendChild(td); tb.appendChild(tr); }
+    w.appendChild(t);
+    return w;
+  };
+  const heat = (rows, o) => {
+    const cnt = new Map();
+    rows.forEach((r) => { const k = o.row(r) + '\u0001' + o.col(r); cnt.set(k, (cnt.get(k) || 0) + 1); });
+    const max = Math.max(1, ...cnt.values());
+    const rf = o.rowFmt || String, cf = o.colFmt || String;
+    const w = E('div', 'hs-wrap');
+    const t = E('table', 'hs-heat');
+    const hr = E('tr'); hr.appendChild(E('th'));
+    o.cols.forEach((c) => { const th = E('th', 'n', cf(c)); th.scope = 'col'; th.style.textAlign = 'center'; hr.appendChild(th); });
+    hr.appendChild(E('th', 'n', 'Total'));
+    t.appendChild(E('thead')).appendChild(hr);
+    const tb = t.appendChild(E('tbody'));
+    o.rows.forEach((rk) => {
+      const tr = E('tr');
+      const th = E('th', null, rf(rk)); th.scope = 'row'; tr.appendChild(th);
+      let tot = 0;
+      o.cols.forEach((ck) => {
+        const n = cnt.get(rk + '\u0001' + ck) || 0; tot += n;
+        const td = E('td', n ? 'c' : 'c z', n ? String(n) : '·');
+        if (n) {
+          const pct = Math.round(18 + 67 * n / max);
+          td.style.background = `color-mix(in srgb, ${dash.colors[0]} ${pct}%, transparent)`;
+          if (pct > 50) td.style.color = '#fff';
+          td.tabIndex = 0; td.setAttribute('role', 'button');
+          td.setAttribute('aria-label', rf(rk) + ', ' + cf(ck) + ': ' + plural(n, 'report'));
+          const act = () => go(listView(rf(rk) + ', ' + cf(ck), (r) => o.row(r) === rk && o.col(r) === ck));
+          td.addEventListener('click', act);
+          td.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
+        }
+        tr.appendChild(td);
+      });
+      tr.appendChild(E('td', 'n', String(tot)));
+      tb.appendChild(tr);
+    });
+    if (!o.rows.length) { const tr = E('tr'); const td = E('td', null, 'No reports in this view.'); td.colSpan = o.cols.length + 2; tr.appendChild(td); tb.appendChild(tr); }
+    w.appendChild(t);
+    return w;
+  };
+  const barsOf = (rows, keyFn, colorIndex, onPick) => {
+    const m = d3.rollups(rows, (v) => v.length, keyFn).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+    const max = d3.max(m, (d) => d[1]) || 1;
+    const box = E('div', 'hs-bars');
+    m.forEach(([k, n]) => {
+      const line = E('div', 'hs-bar hs-pick');
+      line.tabIndex = 0; line.setAttribute('role', 'button'); line.setAttribute('aria-label', k + ': ' + plural(n, 'report'));
+      const tr = E('div', 'track'); const f = E('div', 'fill');
+      f.style.width = (n / max) * 100 + '%';
+      f.style.background = k === 'Not given' ? 'var(--cds-chart-muted)' : dash.colors[colorIndex];
+      tr.appendChild(f);
+      line.append(E('span', null, k), tr, E('span', 'c', String(n)));
+      line.addEventListener('click', () => onPick(k));
+      line.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(k); } });
+      box.appendChild(line);
+    });
+    if (!m.length) box.appendChild(E('p', 'note', 'None in this view.'));
+    return box;
+  };
+  const timeScatter = (host, rows) => {
+    const timed = rows.filter(isTime);
+    const box = E('div', 'hs-chart'); host.appendChild(box);
+    if (!timed.length) { box.appendChild(E('p', 'note', 'No reports in this view give a time.')); return; }
+    const months = monthsOf(timed);
+    const towns = byCount(timed, (r) => r.town);
+    const color = (t) => dash.colors[towns.indexOf(t) % dash.colors.length];
+    const W = box.clientWidth || 320, rowH = 34, m = { t: 8, r: 14, b: 30, l: 60 };
+    const plotH = months.length * rowH, H = m.t + plotH + m.b;
+    const lo = Math.min(6, Math.floor(d3.min(timed, (r) => toH(r.time)))), hi = Math.max(20, Math.ceil(d3.max(timed, (r) => toH(r.time))));
+    const x = d3.scaleLinear([lo, hi], [m.l, W - m.r]);
+    const y = d3.scaleBand(months, [m.t, m.t + plotH]);
+    const svg = d3.select(box).insert('svg', ':first-child').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Time of day of each report, by month');
+    svg.append('rect').attr('x', x(9)).attr('width', x(15) - x(9)).attr('y', m.t).attr('height', plotH).attr('fill', 'var(--cds-chart-grid)').attr('opacity', 0.6);
+    svg.append('g').selectAll('line').data(months).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', (d) => y(d) + y.bandwidth() / 2).attr('y2', (d) => y(d) + y.bandwidth() / 2).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(months).join('text').attr('x', m.l - 8).attr('y', (d) => y(d) + y.bandwidth() / 2).attr('dy', '0.32em').attr('text-anchor', 'end').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text(mLabel);
+    const step = W < 420 ? 6 : 3;
+    const ticks = d3.range(Math.ceil(lo / step) * step, hi + 0.01, step);
+    const hf = (h) => (h === 12 ? 'noon' : h === 0 || h === 24 ? 'midnight' : (h % 12) + (h < 12 ? ' a.m.' : ' p.m.'));
+    svg.append('g').selectAll('text').data(ticks).join('text').attr('x', (h) => x(h)).attr('y', H - 8).attr('text-anchor', 'middle').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text(hf);
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', m.t + plotH).attr('y2', m.t + plotH).attr('stroke', 'var(--cds-chart-axis)');
+    const placed = [];
+    const pos = timed.slice().sort((a, b) => toH(a.time) - toH(b.time)).map((r) => {
+      const cx = x(toH(r.time)), mid = y(mOf(r)) + y.bandwidth() / 2;
+      let lvl = 0; while (placed.some((p) => p.m === mOf(r) && p.lvl === lvl && Math.abs(p.cx - cx) < 13)) lvl++;
+      placed.push({ m: mOf(r), cx, lvl });
+      return { r, cx, cy: mid + (lvl % 2 ? 1 : -1) * Math.ceil(lvl / 2) * 9 };
+    });
+    const tip = hsTip(box); tip.hidden = true;
+    svg.append('g').selectAll('circle').data(pos).join('circle').attr('cx', (q) => q.cx).attr('cy', (q) => q.cy).attr('r', 6.5)
+      .attr('fill', (q) => color(q.r.town)).attr('stroke', 'var(--color-panel)').attr('stroke-width', 1.5).style('cursor', 'pointer')
+      .on('pointermove', (event, q) => hsShowTip(box, tip, event, q.r.town + ', ' + hsDate(q.r.date), q.r.time + ' · ' + (q.r.place || placeOf(q.r))))
+      .on('pointerleave', () => { tip.hidden = true; })
+      .on('click', (event, q) => go(listView(q.r.town + ', ' + hsDate(q.r.date), (r) => r.id === q.r.id)));
+    const lg = E('div', 'hs-legend');
+    towns.forEach((t) => { const s = E('span'); const i = E('i'); i.style.background = color(t); s.append(i, document.createTextNode(t)); lg.appendChild(s); });
+    host.appendChild(lg);
+  };
+  const tilesOf = (body, items) => {
+    const box = E('div', 'hs-tiles');
+    items.forEach(([v, l]) => { const t = E('div', 'hs-tile'); t.append(E('span', 'v', String(v)), E('span', 'l', l)); box.appendChild(t); });
+    body.appendChild(box);
+  };
+
+  // Views
+  const listView = (title, fn, sub) => ({ title, sub, build: (b) => { const rows = scoped().filter(fn); section(b, plural(rows.length, 'report')).appendChild(reportTable(rows)); } });
+  const V = {};
+  V.all = () => listView('Every report', () => true);
+  V.recent = () => listView('Reports in the last 90 days', (r) => ageDays(r) <= 90, 'counted back from the latest check');
+  V.latest = () => ({ title: 'Most recent reports', build: (b) => { const rows = scoped().sort((a, c) => c.date.localeCompare(a.date)).slice(0, 5); section(b, 'The 5 latest reports').appendChild(reportTable(rows)); } });
+  V.month = (k) => listView('Reports in ' + mLong(k), (r) => mOf(r) === k);
+  V.weekday = (k) => listView('Reports on a ' + WDL[WD.indexOf(k)], (r) => wdOf(r) === k, 'many alerts are dated by the day they were filed');
+  V.place = (k) => listView(k, (r) => placeOf(r) === k, 'type of place');
+  V.kind = (k) => listView(k, (r) => r.source_kind === k, 'how the report is backed');
+
+  V.town = (name) => ({
+    title: name,
+    build: (b) => {
+      const rows = scoped().filter((r) => r.town === name);
+      tilesOf(b, [[rows.length, 'Reports, all time'], [rows.filter((r) => ageDays(r) <= 90).length, 'In the last 90 days'], [rows.filter((r) => r.evidence).length, 'With evidence'], [hsDate(d3.max(rows, (r) => r.date)), 'Most recent']]);
+      const months = monthsOf(rows);
+      section(b, 'Month by month', 'Tap a number to see those reports.').appendChild(heat(rows, { row: () => name, col: mOf, rows: rows.length ? [name] : [], cols: months, colFmt: mLabel }));
+      const timed = rows.filter(isTime);
+      if (timed.length) { const s = section(b, 'Time of day', 'Each dot is one report. The shaded band is 9 a.m. to 3 p.m.'); timeScatter(s, rows); }
+      section(b, 'Types of places').appendChild(barsOf(rows, placeOf, 1, (k) => go(listView(name + ': ' + k, (r) => r.town === name && placeOf(r) === k))));
+      section(b, 'How each report is backed').appendChild(barsOf(rows, (r) => r.source_kind, 2, (k) => go(listView(name + ': ' + k, (r) => r.town === name && r.source_kind === k))));
+      section(b, 'Day of the week', 'Approximate for alerts dated by the day they were filed.').appendChild(heat(rows, { row: () => name, col: wdOf, rows: rows.length ? [name] : [], cols: WD }));
+      section(b, 'Every report in ' + name).appendChild(reportTable(rows));
+    },
+  });
+  V.towns = () => ({
+    title: 'Towns, month by month',
+    build: (b) => {
+      const rows = scoped(); const towns = byCount(rows, (r) => r.town);
+      section(b, 'Reports by town and month', 'Darker squares mean more reports. Tap a number to see those reports.').appendChild(heat(rows, { row: (r) => r.town, col: mOf, rows: towns, cols: monthsOf(rows), colFmt: mLabel }));
+      section(b, 'Pick a town', 'Opens everything about that town.').appendChild(barsOf(rows, (r) => r.town, 0, (k) => go(V.town(k))));
+    },
+  });
+  V.hours = () => ({
+    title: 'Time of day, month by month',
+    build: (b) => {
+      const rows = scoped(); const timed = rows.filter(isTime);
+      const s1 = section(b, 'Each report by time and month', 'Each dot is one report, colored by town. The shaded band is 9 a.m. to 3 p.m. Tap a dot to see the report.');
+      timeScatter(s1, rows);
+      s1.appendChild(E('p', 'note', plural(timed.length, 'report') + ' of ' + d3.format(',')(rows.length) + ' give a time. The rest are left out here.'));
+      const bandsUsed = BANDS.map((x) => x[0]).filter((k) => timed.some((r) => band(r) === k));
+      section(b, 'Part of the day by month', 'Tap a number to see those reports.').appendChild(heat(timed, { row: band, col: mOf, rows: bandsUsed, cols: monthsOf(timed), rowFmt: bandName, colFmt: mLabel }));
+      section(b, 'Part of the day by town').appendChild(heat(timed, { row: (r) => r.town, col: band, rows: byCount(timed, (r) => r.town), cols: bandsUsed, colFmt: bandName }));
+      section(b, 'Reports that give a time').appendChild(reportTable(timed));
+    },
+  });
+  V.weekdays = () => ({
+    title: 'Day of the week, in depth',
+    sub: 'days are approximate',
+    build: (b) => {
+      const rows = scoped();
+      section(b, 'Day of the week by month', 'Tap a number to see those reports.').appendChild(heat(rows, { row: wdOf, col: mOf, rows: WD, cols: monthsOf(rows), rowFmt: (k) => WDL[WD.indexOf(k)], colFmt: mLabel }));
+      section(b, 'Day of the week by town').appendChild(heat(rows, { row: (r) => r.town, col: wdOf, rows: byCount(rows, (r) => r.town), cols: WD }));
+    },
+  });
+  V.months = () => ({
+    title: 'Reports by month, in depth',
+    build: (b) => {
+      const rows = scoped(); const months = monthsOf(rows);
+      section(b, 'By town', 'Tap a number to see those reports.').appendChild(heat(rows, { row: (r) => r.town, col: mOf, rows: byCount(rows, (r) => r.town), cols: months, colFmt: mLabel }));
+      section(b, 'By how each report is backed').appendChild(heat(rows, { row: (r) => r.source_kind, col: mOf, rows: byCount(rows, (r) => r.source_kind), cols: months, colFmt: mLabel }));
+      section(b, 'By type of place').appendChild(heat(rows, { row: placeOf, col: mOf, rows: byCount(rows, placeOf), cols: months, colFmt: mLabel }));
+    },
+  });
+  V.places = () => ({
+    title: 'Types of places, in depth',
+    build: (b) => {
+      const rows = scoped(); const places = byCount(rows, placeOf);
+      section(b, 'Tap a type to see its reports').appendChild(barsOf(rows, placeOf, 1, (k) => go(V.place(k))));
+      section(b, 'By town', 'Tap a number to see those reports.').appendChild(heat(rows, { row: placeOf, col: (r) => r.town, rows: places, cols: byCount(rows, (r) => r.town) }));
+      section(b, 'By month').appendChild(heat(rows, { row: placeOf, col: mOf, rows: places, cols: monthsOf(rows), colFmt: mLabel }));
+    },
+  });
+  V.kinds = () => ({
+    title: 'How reports are backed, in depth',
+    build: (b) => {
+      const rows = scoped(); const kinds = byCount(rows, (r) => r.source_kind);
+      section(b, 'Tap a type to see its reports').appendChild(barsOf(rows, (r) => r.source_kind, 2, (k) => go(V.kind(k))));
+      section(b, 'By town', 'Tap a number to see those reports.').appendChild(heat(rows, { row: (r) => r.source_kind, col: (r) => r.town, rows: kinds, cols: byCount(rows, (r) => r.town) }));
+      section(b, 'By month').appendChild(heat(rows, { row: (r) => r.source_kind, col: mOf, rows: kinds, cols: monthsOf(rows), colFmt: mLabel }));
+    },
+  });
+
+  window.hsDive = (key, arg) => { const f = V[key]; if (f) go(f(arg), true); };
+
+  // Hook up the main page
+  const hook = (sel, key) => {
+    const card = document.querySelector(sel);
+    if (!card) return;
+    card.classList.add('hs-click');
+    const h2 = card.querySelector('h2');
+    const hd = E('div', 'hs-cardhead');
+    h2.replaceWith(hd); hd.appendChild(h2);
+    const btn = E('button', 'hs-dive', 'Details ›'); btn.type = 'button'; btn.setAttribute('aria-label', 'Details: ' + h2.textContent);
+    hd.appendChild(btn);
+    card.addEventListener('click', (e) => { if (e.target.closest('a, input, select, textarea')) return; hsDive(key); });
+  };
+  hook('#towns', 'towns'); hook('#places', 'places'); hook('#kinds', 'kinds'); hook('#weekdays', 'weekdays'); hook('#hours', 'hours'); hook('#months', 'months');
+
+  const pickBars = (sel, key) => {
+    const el = document.querySelector(sel);
+    const act = (e) => { const line = e.target.closest('.hs-pick'); if (!line) return; e.stopPropagation(); hsDive(key, line.dataset.k); };
+    el.addEventListener('click', act);
+  };
+  pickBars('[data-draw="places"]', 'place');
+  pickBars('[data-draw="kinds"]', 'kind');
+
+  document.querySelector('[data-draw="towns"]').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    e.stopPropagation(); hsDive('town', tr.cells[0].textContent);
+  });
+
+  const tileKeys = { 't-n': 'all', 't-recent': 'recent', 't-towns': 'towns', 't-last': 'latest' };
+  document.querySelectorAll('#totals .hs-tile').forEach((t) => {
+    const key = tileKeys[t.querySelector('.v').dataset.draw];
+    t.classList.add('hs-click'); t.tabIndex = 0; t.setAttribute('role', 'button');
+    t.setAttribute('aria-label', 'Details: ' + t.querySelector('.l').textContent);
+    t.addEventListener('click', () => hsDive(key));
+    t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hsDive(key); } });
+  });
+})();
 
 // Sighting form (sent to Formspree, reviewed before anything is posted)
 window.HS_FORM_ENDPOINT = 'https://formspree.io/f/maeoqrdp';
